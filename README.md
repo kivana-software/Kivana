@@ -2,7 +2,7 @@
 
 Local-first personal finance desktop app for tracking bills, income, accounts, transactions, invoices, and reports.
 
-![Version](https://img.shields.io/badge/version-0.4.11-blue)
+![Version](https://img.shields.io/badge/version-0.4.12-blue)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey)
 ![License](https://img.shields.io/badge/license-proprietary-red)
 ![Built with Tauri](https://img.shields.io/badge/built%20with-Tauri-24C8DB)
@@ -80,7 +80,7 @@ Have an idea? Found something missing? I actively review and prioritize requests
 - Shared accounts (family/team)
 
 **Recently shipped:**
-- v0.4.11: Dashboard improvements (budget card, clearer charts, “Left after bills” breakdown popup) + reconcile UX polish + auth gating fixes
+- v0.4.12: Dashboard improvements (budget card, clearer charts, “Left after bills” breakdown popup) + reconcile UX polish + auth gating fixes
 - v0.4.1: PDF viewer window improvements (draggable header, single-page view, print with watermark, basic highlight tool)
 - v0.4.0: Sidebar/menu UX fixes + top-bar quick add (Bills/Income)
 - v0.3.2: Transaction import progress overlay (CSV/PDF)
