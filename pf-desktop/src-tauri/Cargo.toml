@@ -4,7 +4,7 @@ version = "0.4.11"
 description = "Kivana desktop app"
 authors = ["Kostas Jankus"]
 license = "UNLICENSED"
-repository = "https://github.com/Litas-dev/Kivana"
+repository = "https://github.com/kivana-software/Kivana"
 edition = "2021"
 rust-version = "1.77.2"
 

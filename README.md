@@ -43,7 +43,7 @@ More screenshots will be added as the UI continues to evolve.
 ## Download & Install
 
 Latest release:
-https://github.com/Litas-dev/Kivana/releases/latest
+https://github.com/kivana-software/Kivana/releases/latest
 
 Assets you typically want:
 - macOS: `.dmg`
@@ -53,7 +53,7 @@ Assets you typically want:
 
 Kivana uses the Tauri updater.
 - In the app: Settings → Updates → Check for updates
-- Updater index: https://github.com/Litas-dev/Kivana/releases/latest/download/latest.json
+- Updater index: https://github.com/kivana-software/Kivana/releases/latest/download/latest.json
 
 ## Quick Start
 
