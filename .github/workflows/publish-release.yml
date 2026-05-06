@@ -214,7 +214,7 @@ jobs:
 
       - name: Create/update release and upload assets
         env:
-          GH_TOKEN: ${{ secrets.KIVANA_RELEASES_TOKEN || github.token }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
