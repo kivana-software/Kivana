@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Kivana",
-  "version": "0.4.13",
+  "version": "0.4.15",
   "identifier": "eu.kivana.basic",
   "build": {
     "frontendDist": "../dist",

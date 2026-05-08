@@ -1,7 +1,7 @@
 {
   "name": "pf-desktop",
   "private": false,
-  "version": "0.4.13",
+  "version": "0.4.15",
   "license": "MIT",
   "type": "module",
   "scripts": {
