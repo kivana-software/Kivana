@@ -1,0 +1,91 @@
+:root {
+  --text: rgba(17, 17, 19, 0.86);
+  --text-h: rgba(17, 17, 19, 0.96);
+  --muted: rgba(17, 17, 19, 0.55);
+  --bg: #f2f2f7;
+  --surface: rgba(255, 255, 255, 0.86);
+  --surface-2: rgba(255, 255, 255, 0.96);
+  --border: rgba(60, 60, 67, 0.22);
+  --border-2: rgba(60, 60, 67, 0.14);
+  --hover: rgba(60, 60, 67, 0.08);
+  --hover-2: rgba(60, 60, 67, 0.12);
+  --accent: #0a84ff;
+  --accent-bg: rgba(10, 132, 255, 0.14);
+  --accent-bg-strong: rgba(10, 132, 255, 0.26);
+  --shadow: rgba(0, 0, 0, 0.10) 0 8px 22px;
+  --red: #ff453a;
+  --yellow: #ffd60a;
+  --green: #34c759;
+
+  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, Consolas, monospace;
+
+  font: 14px/140% var(--sans);
+  letter-spacing: 0.1px;
+  color-scheme: dark;
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: rgba(235, 235, 245, 0.82);
+    --text-h: rgba(235, 235, 245, 0.92);
+    --muted: rgba(235, 235, 245, 0.56);
+    --bg: #1f2124;
+    --surface: rgba(32, 34, 37, 0.92);
+    --surface-2: rgba(38, 41, 45, 0.92);
+    --border: rgba(255, 255, 255, 0.08);
+    --border-2: rgba(255, 255, 255, 0.06);
+    --hover: rgba(255, 255, 255, 0.06);
+    --hover-2: rgba(255, 255, 255, 0.10);
+    --accent: #0a84ff;
+    --accent-bg: rgba(10, 132, 255, 0.18);
+    --accent-bg-strong: rgba(10, 132, 255, 0.30);
+    --shadow: rgba(0, 0, 0, 0.55) 0 10px 26px;
+    --red: #ff453a;
+    --yellow: #ffd60a;
+    --green: #34c759;
+  }
+}
+
+#root {
+  width: 100%;
+  margin: 0;
+  text-align: left;
+  border: none;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+h1,
+h2 {
+  font-family: var(--heading);
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+h2 {
+  font-size: 20px;
+  line-height: 120%;
+  letter-spacing: -0.2px;
+  margin: 0 0 10px;
+}
+p {
+  margin: 0;
+}
+
+code {
+  font-family: var(--mono);
+}

@@ -1,0 +1,50 @@
+.DS_Store
+
+# Node / JS
+node_modules/
+package-lock.json
+package.json
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# App bundle output (custom script)
+build/
+
+# Local artifacts
+*.pdf
+*.PDF
+*.csv
+*.CSV
+
+# Local-only app sources / scripts
+Sources/
+generate_deploy.py
+tools/
+
+# Xcode
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# Logs
+*.log
+kivana-releases/
+
+# Server / backend (keep local-only)
+kivana-api/
+.env
+.env.*
+
+# Build / archives (keep local-only)
+**/target/
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+kivana-api.tar.gz
+pf-desktop/.env
+
+# Do not track GitHub Pages website workflow in this repo
+.github/workflows/deploy-website.yml
