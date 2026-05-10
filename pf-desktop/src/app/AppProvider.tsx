@@ -27,14 +27,19 @@ export function setSection(section: Section): AppAction {
   return { type: 'ui/setSection', section }
 }
 
+function datasetsAreEmpty(data: LoadedDatasets): boolean {
+  return (data.bills ?? []).length === 0 && (data.accounts ?? []).length === 0 && (data.transactions ?? []).length === 0
+}
+
 function buildInitialState(): AppState {
   const fallback = defaultSettings()
   const loaded = loadAllFromLocalStorage(fallback)
+  const didCompleteOnboarding = datasetsAreEmpty(loaded) ? false : loadOnboardingFlag()
   return {
     ...loaded,
     ui: {
       section: 'dashboard',
-      didCompleteOnboarding: loadOnboardingFlag(),
+      didCompleteOnboarding,
       selectedBillId: null,
       selectedAccountId: null,
       selectedTransactionId: null,
@@ -61,12 +66,15 @@ function reducer(state: AppState, action: AppAction): AppState {
       return { ...state, ui: { ...state.ui, transactionsAccountFilterId: action.id } }
     case 'data/replaceAll': {
       const data = action.data as LoadedDatasets
+      const empty = datasetsAreEmpty(data)
+      if (empty) saveOnboardingFlag(false)
       return {
         ...state,
         ...data,
         bills: (data.bills ?? []).map((b) => ({ ...b, customCategoryName: null })),
         ui: {
           ...state.ui,
+          didCompleteOnboarding: empty ? false : state.ui.didCompleteOnboarding,
           selectedBillId: null,
           selectedAccountId: null,
           selectedTransactionId: null,
