@@ -2517,6 +2517,43 @@
   color: var(--muted);
 }
 
+.onboardingModal {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)), rgba(26, 28, 31, 0.86);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.onboardingSteps {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.onboardingDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(235, 235, 245, 0.18);
+}
+
+.onboardingDotActive {
+  background: rgba(10, 132, 255, 0.92);
+  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.16);
+}
+
+.onboardingActions {
+  justify-content: space-between;
+}
+
+.onboardingActionsLeft,
+.onboardingActionsRight {
+  display: inline-flex;
+  gap: 8px;
+}
+
 .modalTitle {
   font-size: 16px;
   font-weight: 700;
