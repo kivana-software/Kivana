@@ -42,6 +42,7 @@ function buildInitialState(): AppState {
     ui: {
       section: 'dashboard',
       didCompleteOnboarding,
+      onboardingOpen: false,
       selectedBillId: null,
       selectedAccountId: null,
       selectedTransactionId: null,
@@ -56,8 +57,12 @@ function reducer(state: AppState, action: AppAction): AppState {
       return { ...state, ui: { ...state.ui, section: action.section } }
     case 'ui/completeOnboarding': {
       saveOnboardingFlag(true)
-      return { ...state, ui: { ...state.ui, didCompleteOnboarding: true } }
+      return { ...state, ui: { ...state.ui, didCompleteOnboarding: true, onboardingOpen: false } }
     }
+    case 'ui/openOnboarding':
+      return { ...state, ui: { ...state.ui, onboardingOpen: true } }
+    case 'ui/closeOnboarding':
+      return { ...state, ui: { ...state.ui, onboardingOpen: false } }
     case 'ui/selectBill':
       return { ...state, ui: { ...state.ui, selectedBillId: action.id } }
     case 'ui/selectAccount':
@@ -77,6 +82,7 @@ function reducer(state: AppState, action: AppAction): AppState {
         ui: {
           ...state.ui,
           didCompleteOnboarding: empty ? false : state.ui.didCompleteOnboarding,
+          onboardingOpen: empty ? false : state.ui.onboardingOpen,
           selectedBillId: null,
           selectedAccountId: null,
           selectedTransactionId: null,

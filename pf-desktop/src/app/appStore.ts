@@ -12,6 +12,7 @@ export type Section =
 export interface UIState {
   section: Section
   didCompleteOnboarding: boolean
+  onboardingOpen: boolean
   selectedBillId: UUID | null
   selectedAccountId: UUID | null
   selectedTransactionId: UUID | null
@@ -25,6 +26,8 @@ export interface AppState extends LoadedDatasets {
 export type AppAction =
   | { type: 'ui/setSection'; section: Section }
   | { type: 'ui/completeOnboarding' }
+  | { type: 'ui/openOnboarding' }
+  | { type: 'ui/closeOnboarding' }
   | { type: 'ui/selectBill'; id: UUID | null }
   | { type: 'ui/selectAccount'; id: UUID | null }
   | { type: 'ui/selectTransaction'; id: UUID | null }

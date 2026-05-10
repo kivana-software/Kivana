@@ -328,6 +328,15 @@ export function SettingsView() {
             </button>
           </div>
         </label>
+
+        <label className="field" style={{ marginTop: 10 }}>
+          <div className="fieldLabel">{tt('settings.setupWizard', 'Setup wizard')}</div>
+          <div className="rowActions" style={{ justifyContent: 'flex-start' }}>
+            <button type="button" onClick={() => dispatch({ type: 'ui/openOnboarding' })}>
+              {tt('settings.setupWizard.open', 'Open setup wizard')}
+            </button>
+          </div>
+        </label>
       </div>
 
       <div className="groupBox">

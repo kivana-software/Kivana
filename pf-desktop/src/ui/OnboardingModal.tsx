@@ -8,14 +8,13 @@ type Step = 'welcome' | 'accounts' | 'bills' | 'finish'
 export function OnboardingModal() {
   const { state, dispatch } = useAppStore()
   const [step, setStep] = useState<Step>('welcome')
-  const [forceOpen, setForceOpen] = useState(false)
   const lang = state.settings.language
   const tt = (key: string, fallback?: string) => t(lang, key, fallback)
 
   const shouldShow = useMemo(() => {
     const empty = state.bills.length === 0 && state.accounts.length === 0 && state.transactions.length === 0
-    return !state.ui.didCompleteOnboarding && (empty || forceOpen)
-  }, [forceOpen, state.accounts.length, state.bills.length, state.transactions.length, state.ui.didCompleteOnboarding])
+    return (empty && !state.ui.didCompleteOnboarding) || state.ui.onboardingOpen
+  }, [state.accounts.length, state.bills.length, state.transactions.length, state.ui.didCompleteOnboarding, state.ui.onboardingOpen])
 
   const stepOrder: Step[] = ['welcome', 'accounts', 'bills', 'finish']
   const stepIndex = stepOrder.indexOf(step)
@@ -55,7 +54,6 @@ export function OnboardingModal() {
 
   function finish() {
     dispatch({ type: 'ui/completeOnboarding' })
-    setForceOpen(false)
     setStep('welcome')
   }
 
@@ -88,7 +86,7 @@ export function OnboardingModal() {
                 type="button"
                 className="btnPrimary"
                 onClick={() => {
-                  setForceOpen(true)
+                  dispatch({ type: 'ui/openOnboarding' })
                   setStep('accounts')
                 }}
               >
