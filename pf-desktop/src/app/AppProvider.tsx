@@ -2,11 +2,11 @@ import { useEffect, useMemo, useReducer, useRef } from 'react'
 import { AppStoreContext, type AppAction, type AppState, type AppStore, type Section } from './appStore'
 import { defaultSettings } from '../domain/settings'
 import type { LoadedDatasets } from '../storage/localJsonStore'
-import { loadAllFromLocalStorage, saveAllToLocalStorage } from '../storage/localJsonStore'
+import { DATA_FOLDER_NAME, loadAllFromLocalStorage, saveAllToLocalStorage } from '../storage/localJsonStore'
 import { isTauriRuntime, loadAllFromTauriFiles, saveAllToTauriFiles } from '../storage/tauriJsonStore'
 import { advanceRecurrence, billClearSnooze, billMarkPaid, billSetSnooze } from '../domain/models'
 
-const ONBOARDING_KEY = 'Kivana/didCompleteOnboarding'
+const ONBOARDING_KEY = `${DATA_FOLDER_NAME}/didCompleteOnboarding`
 
 function loadOnboardingFlag(): boolean {
   try {
@@ -33,7 +33,9 @@ function datasetsAreEmpty(data: LoadedDatasets): boolean {
 
 function buildInitialState(): AppState {
   const fallback = defaultSettings()
-  const loaded = loadAllFromLocalStorage(fallback)
+  const loaded = isTauriRuntime()
+    ? { settings: fallback, bills: [], accounts: [], transactions: [] }
+    : loadAllFromLocalStorage(fallback)
   const didCompleteOnboarding = datasetsAreEmpty(loaded) ? false : loadOnboardingFlag()
   return {
     ...loaded,
