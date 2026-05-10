@@ -2558,6 +2558,131 @@
   margin-top: 12px;
 }
 
+.tourOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  pointer-events: none;
+}
+
+.tourDim {
+  position: fixed;
+  inset: 0;
+  background: transparent;
+}
+
+.tourSpotlight {
+  position: fixed;
+  border-radius: 14px;
+  background: transparent;
+  box-shadow: 0 10px 40px rgba(10, 132, 255, 0.18);
+  outline: 2px solid rgba(10, 132, 255, 0.85);
+  outline-offset: 2px;
+}
+
+.tourPopover {
+  position: fixed;
+  width: 340px;
+  max-width: calc(100vw - 28px);
+  --tour-arrow-x: 22px;
+  --tour-arrow-y: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)), rgba(26, 28, 31, 0.92);
+  border-radius: 14px;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  padding: 12px;
+  pointer-events: auto;
+}
+
+.tourPopover::before {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 0;
+  border: 10px solid transparent;
+}
+
+.tourPopover[data-dir='left']::before {
+  left: -20px;
+  top: var(--tour-arrow-y);
+  border-right-color: rgba(255, 255, 255, 0.14);
+}
+
+.tourPopover[data-dir='right']::before {
+  right: -20px;
+  top: var(--tour-arrow-y);
+  border-left-color: rgba(255, 255, 255, 0.14);
+}
+
+.tourPopover[data-dir='up']::before {
+  left: var(--tour-arrow-x);
+  top: -20px;
+  border-bottom-color: rgba(255, 255, 255, 0.14);
+}
+
+.tourPopover[data-dir='down']::before {
+  left: var(--tour-arrow-x);
+  bottom: -20px;
+  border-top-color: rgba(255, 255, 255, 0.14);
+}
+
+.tourHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.tourTitle {
+  font-weight: 900;
+  color: var(--text-h);
+  font-size: 14px;
+}
+
+.tourClose {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-h);
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  font-size: 18px;
+  line-height: 30px;
+}
+
+.tourClose:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.tourBody {
+  font-size: 13px;
+  color: var(--text);
+  opacity: 0.95;
+  line-height: 1.35;
+}
+
+.tourFooter {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.tourCount {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.tourActions {
+  display: inline-flex;
+  gap: 8px;
+}
+
 .modalTitle {
   font-size: 16px;
   font-weight: 700;

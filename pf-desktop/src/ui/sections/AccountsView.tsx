@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useAppStore } from '../../app/appStore'
 import { setSection } from '../../app/AppProvider'
 import type { Account, AccountKind, Transaction } from '../../domain/models'
@@ -14,7 +14,7 @@ export function AccountsView() {
   const [search, setSearch] = useState('')
   const transactions = useMemo(() => state.transactions, [state.transactions])
   const lang = state.settings.language
-  const tt = (key: string, fallback?: string) => t(lang, key, fallback)
+  const tt = useCallback((key: string, fallback?: string) => t(lang, key, fallback), [lang])
 
   const accountsFiltered = useMemo(() => {
     let items = state.accounts.filter((a) => !a.archived)
@@ -34,7 +34,7 @@ export function AccountsView() {
     if (count === 0) return tt('accounts.summary.none', 'No accounts')
     if (count === 1) return tt('accounts.summary.one', '1 account')
     return tf(lang, 'accounts.summary.many', { count }, `${count} accounts`)
-  }, [accountsFiltered.length, lang, search])
+  }, [accountsFiltered.length, lang, search, tt])
 
   const selected = useMemo(() => {
     if (!selectedId) return null
@@ -164,7 +164,7 @@ export function AccountsView() {
             placeholder={tt('accounts.search.placeholder', 'Search')}
             style={{ width: 160 }}
           />
-          <button type="button" onClick={createAccount} className="btnPrimary">
+          <button type="button" onClick={createAccount} className="btnPrimary" data-tour="accounts-add">
             {tt('common.add', 'Add')}
           </button>
         </div>
@@ -184,6 +184,7 @@ export function AccountsView() {
                   dispatch({ type: 'ui/selectAccount', id: a.id })
                   rowMenu.open(e)
                 }}
+                data-tour={a.id === selectedId ? 'accounts-selected' : undefined}
               >
                 <div className="rowIcon" data-tone={balanceTone(bal)}>
                   <AccountKindIcon kind={a.kind} />

@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "0.4.15"
+version = "0.4.16"
 description = "Kivana desktop app"
 authors = ["Kostas Jankus"]
 license = "MIT"

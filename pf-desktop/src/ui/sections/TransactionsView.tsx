@@ -121,13 +121,13 @@ export function TransactionsView() {
             ]}
             onChange={(v) => setAccountFilter(v as any)}
           />
-          <button type="button" className="btnPrimary" onClick={() => createTransaction('income')}>
+          <button type="button" className="btnPrimary" onClick={() => createTransaction('income')} data-tour="transactions-add-income">
             {tt('transactions.add.income', '+ Income')}
           </button>
-          <button type="button" onClick={() => createTransaction('expense')}>
+          <button type="button" onClick={() => createTransaction('expense')} data-tour="transactions-add-expense">
             {tt('transactions.add.expense', '- Expense')}
           </button>
-          <button type="button" onClick={() => createTransaction('transfer')}>
+          <button type="button" onClick={() => createTransaction('transfer')} data-tour="transactions-add-transfer">
             {tt('transactions.add.transfer', 'Transfer')}
           </button>
         </div>
@@ -141,6 +141,7 @@ export function TransactionsView() {
               type="button"
               className={t.id === selectedId ? 'listItem active stdRow' : 'listItem stdRow'}
               onClick={() => dispatch({ type: 'ui/selectTransaction', id: t.id })}
+              data-tour={t.id === selectedId ? 'transactions-selected' : undefined}
             >
               <div className="rowIcon" data-tone={amountTone(t)}>
                 <TransactionKindIcon kind={t.kind} />

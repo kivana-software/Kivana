@@ -41,6 +41,7 @@ export function Sidebar(props: { onHoverChange?: (expanded: boolean) => void }) 
   return (
     <aside
       className="sidebar"
+      data-tour="sidebar"
       data-tauri-drag-region
       onMouseEnter={() => props.onHoverChange?.(true)}
       onMouseLeave={() => props.onHoverChange?.(false)}
@@ -64,6 +65,7 @@ export function Sidebar(props: { onHoverChange?: (expanded: boolean) => void }) 
                 className={active ? 'sbItem active' : 'sbItem'}
                 onClick={() => dispatch(setSection(item.section))}
                 title={item.title}
+                data-tour={`nav-${item.section}`}
               >
                 <SidebarIconView icon={item.icon} />
                 <span className="sbText">

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppStore } from '../../app/appStore'
 import type { Bill, BillCategory, Recurrence, UUID } from '../../domain/models'
 import { billIsOverdue, billIsPaidFor, billIsSnoozedActive } from '../../domain/models'
@@ -20,7 +20,7 @@ export function BillsView() {
   const [snoozeDate, setSnoozeDate] = useState('')
   const now = new Date()
   const lang = state.settings.language
-  const tt = (key: string, fallback?: string) => t(lang, key, fallback)
+  const tt = useCallback((key: string, fallback?: string) => t(lang, key, fallback), [lang])
 
   const billsSorted = useMemo(() => {
     let items = state.bills
@@ -115,7 +115,7 @@ export function BillsView() {
     if (count === 0) return tt('bills.summary.none', 'No bills')
     if (count === 1) return tt('bills.summary.one', '1 bill')
     return tf(lang, 'bills.summary.many', { count }, `${count} bills`)
-  }, [billsSorted.length, lang])
+  }, [billsSorted.length, lang, tt])
 
   return (
     <>
@@ -134,7 +134,14 @@ export function BillsView() {
           <button type="button" onClick={() => setSoonestFirst((v) => !v)}>
             {soonestFirst ? tt('common.soonest', 'Soonest') : tt('common.latest', 'Latest')}
           </button>
-          <button type="button" className="btnPrimary" onClick={createBill} title={tt('bills.new', 'New bill')} aria-label={tt('bills.new', 'New bill')}>
+          <button
+            type="button"
+            className="btnPrimary"
+            onClick={createBill}
+            title={tt('bills.new', 'New bill')}
+            aria-label={tt('bills.new', 'New bill')}
+            data-tour="bills-add"
+          >
             +
           </button>
         </div>
@@ -148,6 +155,7 @@ export function BillsView() {
               type="button"
               className={b.id === selectedId ? 'listItem active stdRow' : 'listItem stdRow'}
               onClick={() => dispatch({ type: 'ui/selectBill', id: b.id })}
+              data-tour={b.id === selectedId ? 'bills-selected' : undefined}
             >
               <div className="rowIcon" data-tone={billTone(b)}>
                 <BillCategoryIcon category={b.category} />

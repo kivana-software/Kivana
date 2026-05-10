@@ -332,8 +332,11 @@ export function SettingsView() {
         <label className="field" style={{ marginTop: 10 }}>
           <div className="fieldLabel">{tt('settings.setupWizard', 'Setup wizard')}</div>
           <div className="rowActions" style={{ justifyContent: 'flex-start' }}>
-            <button type="button" onClick={() => dispatch({ type: 'ui/openOnboarding' })}>
+            <button type="button" onClick={() => dispatch({ type: 'ui/openOnboarding' })} data-tour="settings-setupwizard">
               {tt('settings.setupWizard.open', 'Open setup wizard')}
+            </button>
+            <button type="button" onClick={() => dispatch({ type: 'ui/startTutorial' })}>
+              {tt('settings.tutorial.open', 'Start tutorial')}
             </button>
           </div>
         </label>

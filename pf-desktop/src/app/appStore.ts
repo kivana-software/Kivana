@@ -13,6 +13,11 @@ export interface UIState {
   section: Section
   didCompleteOnboarding: boolean
   onboardingOpen: boolean
+  tutorialOpen: boolean
+  tutorialStep: number
+  tutorialDemoAccountIds: UUID[]
+  tutorialDemoTransactionIds: UUID[]
+  tutorialDemoBillIds: UUID[]
   selectedBillId: UUID | null
   selectedAccountId: UUID | null
   selectedTransactionId: UUID | null
@@ -28,6 +33,14 @@ export type AppAction =
   | { type: 'ui/completeOnboarding' }
   | { type: 'ui/openOnboarding' }
   | { type: 'ui/closeOnboarding' }
+  | { type: 'ui/startTutorial' }
+  | { type: 'ui/stopTutorial' }
+  | { type: 'ui/nextTutorial' }
+  | { type: 'ui/prevTutorial' }
+  | { type: 'ui/addTutorialDemoAccounts'; ids: UUID[] }
+  | { type: 'ui/addTutorialDemoTransactions'; ids: UUID[] }
+  | { type: 'ui/addTutorialDemoBills'; ids: UUID[] }
+  | { type: 'ui/clearTutorialDemo' }
   | { type: 'ui/selectBill'; id: UUID | null }
   | { type: 'ui/selectAccount'; id: UUID | null }
   | { type: 'ui/selectTransaction'; id: UUID | null }

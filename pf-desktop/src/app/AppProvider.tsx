@@ -43,6 +43,11 @@ function buildInitialState(): AppState {
       section: 'dashboard',
       didCompleteOnboarding,
       onboardingOpen: false,
+      tutorialOpen: false,
+      tutorialStep: 0,
+      tutorialDemoAccountIds: [],
+      tutorialDemoTransactionIds: [],
+      tutorialDemoBillIds: [],
       selectedBillId: null,
       selectedAccountId: null,
       selectedTransactionId: null,
@@ -63,6 +68,45 @@ function reducer(state: AppState, action: AppAction): AppState {
       return { ...state, ui: { ...state.ui, onboardingOpen: true } }
     case 'ui/closeOnboarding':
       return { ...state, ui: { ...state.ui, onboardingOpen: false } }
+    case 'ui/startTutorial':
+      return {
+        ...state,
+        ui: {
+          ...state.ui,
+          tutorialOpen: true,
+          tutorialStep: 0,
+          onboardingOpen: false,
+          tutorialDemoAccountIds: [],
+          tutorialDemoTransactionIds: [],
+          tutorialDemoBillIds: [],
+        },
+      }
+    case 'ui/stopTutorial':
+      return {
+        ...state,
+        ui: { ...state.ui, tutorialOpen: false, tutorialStep: 0, tutorialDemoAccountIds: [], tutorialDemoTransactionIds: [], tutorialDemoBillIds: [] },
+      }
+    case 'ui/nextTutorial':
+      return { ...state, ui: { ...state.ui, tutorialStep: state.ui.tutorialStep + 1 } }
+    case 'ui/prevTutorial':
+      return { ...state, ui: { ...state.ui, tutorialStep: Math.max(0, state.ui.tutorialStep - 1) } }
+    case 'ui/addTutorialDemoAccounts': {
+      const next = [...state.ui.tutorialDemoAccountIds]
+      for (const id of action.ids) if (!next.includes(id)) next.push(id)
+      return { ...state, ui: { ...state.ui, tutorialDemoAccountIds: next } }
+    }
+    case 'ui/addTutorialDemoTransactions': {
+      const next = [...state.ui.tutorialDemoTransactionIds]
+      for (const id of action.ids) if (!next.includes(id)) next.push(id)
+      return { ...state, ui: { ...state.ui, tutorialDemoTransactionIds: next } }
+    }
+    case 'ui/addTutorialDemoBills': {
+      const next = [...state.ui.tutorialDemoBillIds]
+      for (const id of action.ids) if (!next.includes(id)) next.push(id)
+      return { ...state, ui: { ...state.ui, tutorialDemoBillIds: next } }
+    }
+    case 'ui/clearTutorialDemo':
+      return { ...state, ui: { ...state.ui, tutorialDemoAccountIds: [], tutorialDemoTransactionIds: [], tutorialDemoBillIds: [] } }
     case 'ui/selectBill':
       return { ...state, ui: { ...state.ui, selectedBillId: action.id } }
     case 'ui/selectAccount':
@@ -83,6 +127,11 @@ function reducer(state: AppState, action: AppAction): AppState {
           ...state.ui,
           didCompleteOnboarding: empty ? false : state.ui.didCompleteOnboarding,
           onboardingOpen: empty ? false : state.ui.onboardingOpen,
+          tutorialOpen: empty ? false : state.ui.tutorialOpen,
+          tutorialStep: empty ? 0 : state.ui.tutorialStep,
+          tutorialDemoAccountIds: [],
+          tutorialDemoTransactionIds: [],
+          tutorialDemoBillIds: [],
           selectedBillId: null,
           selectedAccountId: null,
           selectedTransactionId: null,

@@ -1,12 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useAppStore } from '../app/appStore'
-import { setSection } from '../app/AppProvider'
 import type { Account, AccountKind, Bill, BillCategory, Recurrence } from '../domain/models'
 import { startOfDay } from '../domain/models'
 import { t } from './i18n'
 import { accountKindLabel, billCategoryLabel, recurrenceLabel } from './i18n'
 
-type Step = 'welcome' | 'accounts' | 'bills' | 'tour' | 'finish'
+type Step = 'welcome' | 'accounts' | 'bills' | 'finish'
 
 export function OnboardingModal() {
   const { state, dispatch } = useAppStore()
@@ -34,7 +33,7 @@ export function OnboardingModal() {
     return (empty && !state.ui.didCompleteOnboarding) || state.ui.onboardingOpen
   }, [state.accounts.length, state.bills.length, state.transactions.length, state.ui.didCompleteOnboarding, state.ui.onboardingOpen])
 
-  const stepOrder: Step[] = ['welcome', 'accounts', 'bills', 'tour', 'finish']
+  const stepOrder: Step[] = ['welcome', 'accounts', 'bills', 'finish']
   const stepIndex = stepOrder.indexOf(step)
 
   function makeId(): string {
@@ -123,11 +122,6 @@ export function OnboardingModal() {
   function finish() {
     dispatch({ type: 'ui/completeOnboarding' })
     setStep('welcome')
-  }
-
-  function openSection(section: 'dashboard' | 'accounts' | 'transactions' | 'bills' | 'settings') {
-    dispatch(setSection(section))
-    dispatch({ type: 'ui/closeOnboarding' })
   }
 
   if (!shouldShow) return null
@@ -306,61 +300,10 @@ export function OnboardingModal() {
                 <button type="button" onClick={addBill}>
                   {tt('onboarding.bills.add', 'Add bill')}
                 </button>
-                <button type="button" onClick={() => setStep('tour')}>
+                <button type="button" onClick={() => setStep('finish')}>
                   {tt('bills.skip', 'Skip')}
                 </button>
-                <button type="button" className="btnPrimary" onClick={() => setStep('tour')} disabled={state.bills.length === 0}>
-                  {tt('common.next', 'Next')}
-                </button>
-              </div>
-            </div>
-          </>
-        ) : null}
-
-        {step === 'tour' ? (
-          <>
-            <div className="modalTitle">{tt('onboarding.tour.title', 'Quick tour')}</div>
-            <div className="note">
-              {tt(
-                'onboarding.tour.note',
-                'Use the sidebar to switch screens. The + button in the top bar creates new items. Use Settings → Setup wizard to reopen this tutorial anytime.',
-              )}
-            </div>
-
-            <div className="form onboardingForm">
-              <div className="note" style={{ marginTop: 2 }}>
-                {tt('onboarding.tour.try', 'Try it now:')}
-              </div>
-              <div className="modalActions" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
-                <button type="button" onClick={() => openSection('accounts')}>
-                  {tt('onboarding.tour.openAccounts', 'Open Accounts')}
-                </button>
-                <button type="button" onClick={() => openSection('transactions')}>
-                  {tt('onboarding.tour.openTransactions', 'Open Transactions')}
-                </button>
-                <button type="button" onClick={() => openSection('bills')}>
-                  {tt('onboarding.tour.openBills', 'Open Bills')}
-                </button>
-                <button type="button" onClick={() => openSection('settings')}>
-                  {tt('onboarding.tour.openSettings', 'Open Settings')}
-                </button>
-              </div>
-              <div className="note" style={{ marginTop: 10 }}>
-                {tt(
-                  'onboarding.tour.hint',
-                  'Tip: create at least 1 account first, then add income/expense transactions to see your balance and dashboard activity.',
-                )}
-              </div>
-            </div>
-
-            <div className="modalActions onboardingActions">
-              <div className="onboardingActionsLeft">
-                <button type="button" onClick={() => setStep('bills')}>
-                  {tt('onboarding.back', 'Back')}
-                </button>
-              </div>
-              <div className="onboardingActionsRight">
-                <button type="button" className="btnPrimary" onClick={() => setStep('finish')}>
+                <button type="button" className="btnPrimary" onClick={() => setStep('finish')} disabled={state.bills.length === 0}>
                   {tt('common.next', 'Next')}
                 </button>
               </div>
@@ -373,6 +316,16 @@ export function OnboardingModal() {
             <div className="modalTitle">{tt('onboarding.finish.title', 'Done')}</div>
             <div className="note">{tt('onboarding.finish.note', 'You can change anything later in the app.')}</div>
             <div className="modalActions">
+              <button
+                type="button"
+                onClick={() => {
+                  dispatch({ type: 'ui/completeOnboarding' })
+                  dispatch({ type: 'ui/startTutorial' })
+                  setStep('welcome')
+                }}
+              >
+                {tt('onboarding.finish.tutorial', 'Start tutorial')}
+              </button>
               <button type="button" className="btnPrimary" onClick={finish}>
                 {tt('onboarding.finish.cta', 'Finish')}
               </button>
