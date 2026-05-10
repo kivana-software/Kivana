@@ -2554,6 +2554,10 @@
   gap: 8px;
 }
 
+.onboardingForm {
+  margin-top: 12px;
+}
+
 .modalTitle {
   font-size: 16px;
   font-weight: 700;
