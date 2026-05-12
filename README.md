@@ -101,7 +101,6 @@ Grab the latest release for your platform from the [Releases page](https://githu
 |----------|--------|
 | **macOS** | `.dmg` |
 | **Windows** | `.msi` |
-| **Linux** | `.AppImage` or `.deb` |
 
 ### macOS Fix (if blocked)
 
