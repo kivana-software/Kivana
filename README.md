@@ -30,12 +30,27 @@
 
 ---
 
-<!-- TODO: Add hero screenshot here -->
-<!-- 🖼️ Replace this placeholder with a screenshot of the app:
 <p align="center">
-  <img src="assets/screenshot-hero.png" alt="Kivana App Screenshot" width="800"/>
+  <img src="https://raw.githubusercontent.com/kivana-software/Kivana/main/assets/dashbord1.png" alt="Kivana Dashboard Screenshot" width="800"/>
 </p>
--->
+
+<p align="center">
+  <em>Your finances, beautifully organized — fully offline, fully private.</em>
+</p>
+
+<details>
+<summary>👀 See more screenshots</summary>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/kivana-software/Kivana/main/assets/Report.png" alt="Kivana Reports" width="800"/>
+</p>
+<p align="center">
+  <em>Track income, expenses, and trends with detailed reports.</em>
+</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/kivana-software/Kivana/main/assets/hero.png" alt="Kivana Hero" width="600"/>
+</p>
+</details>
 
 Kivana is a **modern personal finance & accounting app** that runs entirely on your device. No cloud, no subscriptions, no data selling — just a beautiful, fast, and private way to manage your money.
 
@@ -101,6 +116,7 @@ Grab the latest release for your platform from the [Releases page](https://githu
 |----------|--------|
 | **macOS** | `.dmg` |
 | **Windows** | `.msi` |
+| **Linux** | `.AppImage` or `.deb` |
 
 ### macOS Fix (if blocked)
 
