@@ -229,7 +229,7 @@ export function Sidebar(props: { onHoverChange?: (expanded: boolean) => void }) 
         ) : null}
       </nav>
       <div className="sbFooter" data-tauri-drag-region>
-        www.kivana.eu
+        Local-first · your data stays on this Mac
       </div>
       <div className="sidebarDragSpacer" data-tauri-drag-region />
       {peopleModalOpen ? (
