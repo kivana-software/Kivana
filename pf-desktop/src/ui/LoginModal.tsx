@@ -136,7 +136,7 @@ export function LoginModal(props: { variant?: 'account' | 'locked'; contextNote?
         ) : (
           <>
             <div className="modalTitle">{variant === 'locked' ? 'Sign in' : 'Account'}</div>
-            <div className="note">Create an account or sign in. Your plan will show here.</div>
+            <div className="note">Optional. Kivana Pro is unlocked free on this device — no account or sign-in needed. Signing in only links your plan and avatar.</div>
             <div className="field" style={{ marginTop: 12 }}>
               <div className="fieldLabel">Email</div>
               <input

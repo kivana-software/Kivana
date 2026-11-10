@@ -1402,6 +1402,9 @@ export function SettingsView() {
             <div className="settingsGroupHeader">
               <div className="settingsGroupTitle">Account</div>
             </div>
+            <div className="note" style={{ marginBottom: 8 }}>
+              Optional. Kivana Pro is included free on this device — no account or sign-in required. Data stays local.
+            </div>
 
             <div className="settingsRow">
               <div className="settingsRowText">

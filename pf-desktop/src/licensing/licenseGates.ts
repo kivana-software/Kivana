@@ -1,6 +1,11 @@
 import type { EntitlementsResponse, ProductEntitlement } from './entitlementsApi'
 
-export function isAdvancedAccount(entitlements: EntitlementsResponse | null): boolean {
+// Kivana is fully unlocked on this device: no account, trial or server check required.
+// Set to false to re-enable remote entitlement gating.
+export const LOCAL_PRO_UNLOCKED = true
+
+export function isAdvancedAccount(entitlements?: EntitlementsResponse | null): boolean {
+  if (LOCAL_PRO_UNLOCKED) return true
   const p = entitlements?.products?.find((x) => x.productCode === 'kivana') ?? entitlements?.products?.[0]
   if (!p) return true
   const status = String(p.status || '').toLowerCase()
@@ -25,7 +30,8 @@ export function displayPlanName(p: ProductEntitlement): string {
   return 'Free'
 }
 
-export function planBadgeLabel(entitlements: EntitlementsResponse | null): string {
+export function planBadgeLabel(entitlements?: EntitlementsResponse | null): string {
+  if (LOCAL_PRO_UNLOCKED) return 'Pro'
   const p = entitlements?.products?.find((x) => x.productCode === 'kivana') ?? entitlements?.products?.[0]
   if (!p) return 'Pro'
   return displayPlanName(p)
