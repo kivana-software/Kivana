@@ -11,3 +11,11 @@ export function fromDateInputValue(value: string): Date {
   return new Date(y, m - 1, d)
 }
 
+export function formatBackupAge(ms: number | null | undefined): string {
+  if (!ms || !Number.isFinite(ms)) return 'Never'
+  const diff = Math.max(0, Date.now() - ms)
+  const days = Math.floor(diff / (24 * 60 * 60 * 1000))
+  if (days <= 0) return 'Today'
+  if (days === 1) return '1 day ago'
+  return `${days} days ago`
+}

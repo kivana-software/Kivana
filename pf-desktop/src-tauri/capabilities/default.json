@@ -9,10 +9,13 @@
     ]
   },
   "windows": [
-    "main"
+    "main",
+    "pdf-viewer"
   ],
   "permissions": [
     "core:default",
+    "core:webview:allow-create-webview-window",
+    "core:webview:allow-print",
     "core:window:allow-start-dragging",
     "core:window:allow-create",
     "core:window:allow-close",
@@ -28,6 +31,7 @@
     "dialog:allow-save",
     "dialog:allow-message",
     "dialog:allow-confirm",
-    "dialog:allow-ask"
+    "dialog:allow-ask",
+    "updater:default"
   ]
 }

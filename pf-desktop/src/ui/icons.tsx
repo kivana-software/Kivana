@@ -1,18 +1,41 @@
 import type { DueSeverity, SidebarIcon } from './sidebarModel'
-import type { AccountKind, BillCategory, TransactionKind } from '../domain/models'
+import type { AccountKind, BillCategory, DebtKind, TransactionKind } from '../domain/models'
 
 export function SidebarIconView(props: { icon: SidebarIcon; dueSeverity?: DueSeverity }) {
-  const color = 'var(--muted)'
+  const color =
+    props.icon === 'dueSoon'
+      ? props.dueSeverity === 'overdue'
+        ? 'var(--red)'
+        : props.dueSeverity === 'soon'
+          ? 'var(--yellow)'
+          : 'var(--muted)'
+      : 'var(--muted)'
 
   switch (props.icon) {
     case 'overview':
       return <IconBox color={color}><ListIcon /></IconBox>
     case 'calendar':
       return <IconBox color={color}><CalendarIcon /></IconBox>
+    case 'income':
+      return <IconBox color={color}><ArrowDownIcon /></IconBox>
+    case 'dueSoon':
+      return <IconBox color={color}><BellIcon /></IconBox>
+    case 'deferred':
+      return <IconBox color={color}><PauseIcon /></IconBox>
+    case 'paidRecently':
+      return <IconBox color={color}><ClockIcon /></IconBox>
     case 'accounts':
       return <IconBox color={color}><CardIcon /></IconBox>
     case 'transactions':
       return <IconBox color={color}><LinesIcon /></IconBox>
+    case 'invoices':
+      return <IconBox color={color}><ReceiptIcon /></IconBox>
+    case 'goals':
+      return <IconBox color={color}><TargetIcon /></IconBox>
+    case 'debts':
+      return <IconBox color={color}><PercentIcon /></IconBox>
+    case 'reports':
+      return <IconBox color={color}><ChartIcon /></IconBox>
     case 'settings':
       return <IconBox color={color}><GearIcon /></IconBox>
   }
@@ -73,6 +96,33 @@ function CalendarIcon() {
   )
 }
 
+function BellIcon() {
+  return (
+    <Svg>
+      <path d="M18 8a6 6 0 10-12 0c0 7-3 7-3 7h18s-3 0-3-7" />
+      <path d="M13.73 21a2 2 0 01-3.46 0" />
+    </Svg>
+  )
+}
+
+function PauseIcon() {
+  return (
+    <Svg>
+      <path d="M6 4h4v16H6z" />
+      <path d="M14 4h4v16h-4z" />
+    </Svg>
+  )
+}
+
+function ClockIcon() {
+  return (
+    <Svg>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v6l4 2" />
+    </Svg>
+  )
+}
+
 function CardIcon() {
   return (
     <Svg>
@@ -101,6 +151,16 @@ function TargetIcon() {
       <path d="M22 12h-3" />
       <path d="M12 22v-3" />
       <path d="M2 12h3" />
+    </Svg>
+  )
+}
+
+function PercentIcon() {
+  return (
+    <Svg>
+      <path d="M19 5L5 19" />
+      <circle cx="7" cy="7" r="2" />
+      <circle cx="17" cy="17" r="2" />
     </Svg>
   )
 }
@@ -167,6 +227,19 @@ export function AccountKindIcon(props: { kind: AccountKind }) {
       return <ChartIcon />
     default:
       return <CardIcon />
+  }
+}
+
+export function DebtKindIcon(props: { kind: DebtKind }) {
+  switch (props.kind) {
+    case 'creditCard':
+      return <CreditCardIcon />
+    case 'loan':
+      return <BankIcon />
+    case 'mortgage':
+      return <HomeIcon />
+    default:
+      return <PercentIcon />
   }
 }
 

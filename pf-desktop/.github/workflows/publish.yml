@@ -1,0 +1,80 @@
+name: publish
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish-tauri:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: '--target aarch64-apple-darwin'
+          - platform: windows-latest
+            args: ''
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin' || '' }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: install frontend dependencies
+        run: npm ci
+
+      - name: verify version sync (package.json is source of truth)
+        run: |
+          npm run version:sync
+          git diff --exit-code
+
+      - name: build + upload to GitHub Release
+        id: tauri
+        uses: tauri-apps/tauri-action@action-v0.6.2
+        env:
+          CI: true
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: v__VERSION__
+          releaseName: 'Kivana v__VERSION__'
+          releaseBody: ''
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
+
+  publish-release:
+    permissions:
+      contents: write
+    needs:
+      - publish-tauri
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: publish GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          NOTES="$(gh api -X POST "repos/${GITHUB_REPOSITORY}/releases/generate-notes" -f tag_name="${TAG}" -f target_commitish="${GITHUB_SHA}" --jq .body)"
+          gh release edit "${TAG}" --notes "${NOTES}" --draft=false --latest

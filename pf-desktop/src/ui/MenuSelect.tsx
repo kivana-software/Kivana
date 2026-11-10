@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
-type Option<T extends string> = { value: T; label: string }
+type Option<T extends string> = { value: T; label: string; disabled?: boolean }
 
 export function MenuSelect<T extends string>(props: {
   value: T
@@ -104,8 +104,10 @@ export function MenuSelect<T extends string>(props: {
                   <button
                     key={o.value}
                     type="button"
+                    disabled={Boolean(o.disabled)}
                     className={o.value === props.value ? 'menuOption active' : 'menuOption'}
                     onClick={() => {
+                      if (o.disabled) return
                       props.onChange(o.value)
                       setOpen(false)
                     }}

@@ -1,11 +1,11 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Kivana",
-  "version": "0.4.16",
-  "identifier": "eu.kivana.basic",
+  "version": "0.4.21",
+  "identifier": "com.personal.PersonalFinances",
   "build": {
     "frontendDist": "../dist",
-    "devUrl": "http://localhost:5205",
+    "devUrl": "http://localhost:5174",
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build"
   },
@@ -28,7 +28,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' asset: data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' http://localhost:5205",
+      "csp": "default-src 'self'; img-src 'self' asset: data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https: http: http://localhost:11434",
       "capabilities": [
         "default"
       ]
@@ -36,7 +36,7 @@
   },
   "bundle": {
     "active": true,
-    "createUpdaterArtifacts": false,
+    "createUpdaterArtifacts": true,
     "targets": "all",
     "icon": [
       "icons/32x32.png",
@@ -45,5 +45,16 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEMzNzFDMEJCMTE0QjUzNkUKUldSdVUwc1J1OEJ4dzFWb0l1UHlKeG1PeGhhMVpxMnEydkJHNmtBYVkxZGNmdjB4YTBEU0FaY1AK",
+      "endpoints": [
+        "https://github.com/kivana-software/Kivana-Pro/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

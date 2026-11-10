@@ -1,20 +1,20 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useAppStore } from '../../app/appStore'
-import { setSection } from '../../app/AppProvider'
-import type { Account, AccountKind, Transaction } from '../../domain/models'
-import { accountBalance, currency } from '../../domain/finance'
+import type { Account, AccountKind } from '../../domain/models'
+import { accountBalance, currency, signedAmountForAccount } from '../../domain/finance'
+import { visibleTransactions } from '../../domain/people'
+import { toDateInputValue } from '../date'
 import { useContextMenu } from '../ContextMenu'
 import { MenuSelect } from '../MenuSelect'
 import { AccountKindIcon } from '../icons'
-import { accountKindLabel, tf, t } from '../i18n'
 
 export function AccountsView() {
   const { state, dispatch } = useAppStore()
   const selectedId = state.ui.selectedAccountId
+  const [setCurrentBalanceText, setSetCurrentBalanceText] = useState('')
   const [search, setSearch] = useState('')
-  const transactions = useMemo(() => state.transactions, [state.transactions])
-  const lang = state.settings.language
-  const tt = useCallback((key: string, fallback?: string) => t(lang, key, fallback), [lang])
+  const personTransactions = useMemo(() => visibleTransactions(state.transactions, state.settings), [state.settings, state.transactions])
+  const hideBalances = state.settings.hideAccountBalances
 
   const accountsFiltered = useMemo(() => {
     let items = state.accounts.filter((a) => !a.archived)
@@ -27,46 +27,18 @@ export function AccountsView() {
 
   const summary = useMemo(() => {
     const count = accountsFiltered.length
-    if (search.trim()) {
-      if (count === 1) return tf(lang, 'accounts.summary.results.one', { count }, `${count} result`)
-      return tf(lang, 'accounts.summary.results.many', { count }, `${count} results`)
-    }
-    if (count === 0) return tt('accounts.summary.none', 'No accounts')
-    if (count === 1) return tt('accounts.summary.one', '1 account')
-    return tf(lang, 'accounts.summary.many', { count }, `${count} accounts`)
-  }, [accountsFiltered.length, lang, search, tt])
+    if (search.trim()) return `${count} result${count === 1 ? '' : 's'}`
+    if (count === 0) return 'No accounts'
+    if (count === 1) return '1 account'
+    return `${count} accounts`
+  }, [accountsFiltered.length, search])
 
   const selected = useMemo(() => {
     if (!selectedId) return null
     return state.accounts.find((a) => a.id === selectedId) ?? null
   }, [selectedId, state.accounts])
 
-  const selectedBalance = selected ? accountBalance(selected, transactions) : 0
-  const selectedTransactionCount = useMemo(() => {
-    if (!selected) return 0
-    return transactions.filter((t) => t.accountId === selected.id || t.toAccountId === selected.id).length
-  }, [selected, transactions])
-
-  function addStartingBalance() {
-    if (!selected) return
-    const t: Transaction = {
-      id: crypto.randomUUID(),
-      kind: 'income',
-      date: new Date(),
-      amount: { currencyCode: selected.currencyCode || state.settings.displayCurrencyCode, value: 0 },
-      accountId: selected.id,
-      toAccountId: null,
-      category: null,
-      customCategoryName: null,
-      payee: tt('accounts.startingBalancePayee', 'Starting balance'),
-      notes: null,
-      tags: [],
-      relatedBillId: null,
-    }
-    dispatch({ type: 'transactions/add', transaction: t })
-    dispatch({ type: 'ui/setTransactionsAccountFilter', id: selected.id })
-    dispatch(setSection('transactions'))
-  }
+  const selectedBalance = selected ? accountBalance(selected, personTransactions) : 0
 
   function createAccount() {
     const a: Account = {
@@ -95,7 +67,7 @@ export function AccountsView() {
 
   function deleteSelected() {
     if (!selected) return
-    const count = transactions.filter((t) => t.accountId === selected.id || t.toAccountId === selected.id).length
+    const count = personTransactions.filter((t) => t.accountId === selected.id || t.toAccountId === selected.id).length
     const msg =
       count > 0
         ? `This account is referenced by ${count} transaction(s). Deleting will remove the account and those transactions will become unassigned.`
@@ -105,12 +77,22 @@ export function AccountsView() {
     dispatch({ type: 'accounts/delete', id: selected.id })
   }
 
+  function applySetCurrentBalance() {
+    if (!selected) return
+    const target = parseDecimal(setCurrentBalanceText)
+    if (target == null) return
+    const current = accountBalance(selected, personTransactions)
+    const delta = target - current
+    updateSelected({ openingBalance: (selected.openingBalance ?? 0) + delta })
+    setSetCurrentBalanceText('')
+  }
+
   const kinds: AccountKind[] = ['checking', 'savings', 'credit', 'cash', 'investment', 'other']
 
   const rowMenu = useContextMenu([
     {
       id: 'edit',
-      label: tt('common.edit', 'Edit'),
+      label: 'Edit',
       onSelect: () => {
         if (!selectedId) return
         dispatch({ type: 'ui/selectAccount', id: selectedId })
@@ -119,7 +101,7 @@ export function AccountsView() {
     { id: 'sep1', kind: 'separator' as const },
     {
       id: 'archive',
-      label: tt('common.archive', 'Archive'),
+      label: 'Archive',
       onSelect: () => {
         if (!selectedId) return
         const acc = state.accounts.find((a) => a.id === selectedId)
@@ -130,13 +112,13 @@ export function AccountsView() {
     },
     {
       id: 'delete',
-      label: tt('common.delete', 'Delete'),
+      label: 'Delete',
       tone: 'danger',
       onSelect: () => {
         if (!selectedId) return
         const acc = state.accounts.find((a) => a.id === selectedId)
         if (!acc) return
-        const count = transactions.filter((t) => t.accountId === acc.id || t.toAccountId === acc.id).length
+        const count = personTransactions.filter((t) => t.accountId === acc.id || t.toAccountId === acc.id).length
         const msg =
           count > 0
             ? `This account is referenced by ${count} transaction(s). Deleting will remove the account and those transactions will become unassigned.`
@@ -161,11 +143,11 @@ export function AccountsView() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={tt('accounts.search.placeholder', 'Search')}
+            placeholder="Search"
             style={{ width: 160 }}
           />
-          <button type="button" onClick={createAccount} className="btnPrimary" data-tour="accounts-add">
-            {tt('common.add', 'Add')}
+          <button type="button" onClick={createAccount} className="btnPrimary">
+            Add
           </button>
         </div>
       </div>
@@ -173,7 +155,7 @@ export function AccountsView() {
       <div className="split">
         <div className="list">
           {accountsFiltered.map((a) => {
-            const bal = accountBalance(a, transactions)
+            const bal = accountBalance(a, personTransactions)
             return (
               <button
                 key={a.id}
@@ -184,7 +166,6 @@ export function AccountsView() {
                   dispatch({ type: 'ui/selectAccount', id: a.id })
                   rowMenu.open(e)
                 }}
-                data-tour={a.id === selectedId ? 'accounts-selected' : undefined}
               >
                 <div className="rowIcon" data-tone={balanceTone(bal)}>
                   <AccountKindIcon kind={a.kind} />
@@ -194,22 +175,22 @@ export function AccountsView() {
                     <span className="rowTitleText">{a.name || 'Untitled'}</span>
                     {a.kind === 'credit' ? (
                       <span className="pill" data-tone="neutral">
-                        {tt('accounts.credit', 'Credit')}
+                        Credit
                       </span>
                     ) : null}
                   </div>
-                  <div className="rowMeta">{a.institution ? a.institution : accountKindLabel(lang, a.kind)}</div>
+                  <div className="rowMeta">{a.institution ? a.institution : a.kind}</div>
                 </div>
                 <div className="rowRight">
                   <div className="rowAmount" data-tone={balanceTone(bal)}>
-                    {currency(bal, a.currencyCode)}
+                    {hideBalances ? '—' : currency(bal, a.currencyCode)}
                   </div>
                   <div className="rowDate" />
                 </div>
               </button>
             )
           })}
-          {accountsFiltered.length === 0 ? <div className="empty">{tt('accounts.empty', 'No accounts yet.')}</div> : null}
+          {accountsFiltered.length === 0 ? <div className="empty">No accounts yet.</div> : null}
         </div>
         {rowMenu.Menu}
 
@@ -217,61 +198,77 @@ export function AccountsView() {
           {selected ? (
             <div className="form">
               <div className="groupBox" style={{ marginTop: 0 }}>
-                <div className="groupTitle">{tt('common.actions', 'Actions')}</div>
+                <div className="groupTitle">Actions</div>
                 <div className="rowActions">
                   <button type="button" onClick={archiveSelected}>
-                    {tt('common.archive', 'Archive')}
+                    Archive
                   </button>
                   <button type="button" onClick={deleteSelected}>
-                    {tt('common.delete', 'Delete')}
+                    Delete
                   </button>
                 </div>
               </div>
 
               <div className="groupBox">
-                <div className="groupTitle">{tt('common.basics', 'Basics')}</div>
+                <div className="groupTitle">Basics</div>
                 <label className="field">
-                  <div className="fieldLabel">{tt('common.name', 'Name')}</div>
+                  <div className="fieldLabel">Name</div>
                   <input value={selected.name} onChange={(e) => updateSelected({ name: e.target.value })} />
                 </label>
 
                 <div className="fieldRow">
                   <label className="field">
-                    <div className="fieldLabel">{tt('accounts.type', 'Type')}</div>
+                    <div className="fieldLabel">Type</div>
                     <MenuSelect
                       value={selected.kind}
-                      options={kinds.map((k) => ({ value: k, label: accountKindLabel(lang, k) }))}
+                      options={kinds.map((k) => ({ value: k, label: k }))}
                       onChange={(v) => updateSelected({ kind: v as AccountKind })}
                     />
                   </label>
                   <label className="field">
-                    <div className="fieldLabel">{tt('common.currency', 'Currency')}</div>
+                    <div className="fieldLabel">Currency</div>
                     <input value={selected.currencyCode} onChange={(e) => updateSelected({ currencyCode: e.target.value })} />
                   </label>
                 </div>
               </div>
 
               <div className="groupBox">
-                <div className="groupTitle">{tt('accounts.balances', 'Balances')}</div>
-                <div className="note">{tt('accounts.balanceFromTransactions', 'Balance comes from transactions.')}</div>
-                <div className="rowActions">
-                  <button type="button" onClick={addStartingBalance}>
-                    {tt('accounts.addStartingBalance', 'Add starting balance')}
-                  </button>
+                <div className="groupTitle">Balances</div>
+                <label className="field">
+                  <div className="fieldLabel">Opening Balance</div>
+                  <input
+                    type={hideBalances ? 'password' : 'number'}
+                    value={selected.openingBalance}
+                    onChange={(e) => updateSelected({ openingBalance: Number(e.target.value) })}
+                  />
+                </label>
+
+                <div className="field">
+                  <div className="fieldLabel">Current Balance</div>
+                  <div className="note">
+                    {hideBalances ? '—' : currency(selectedBalance, selected.currencyCode)}
+                  </div>
                 </div>
 
                 <div className="field">
-                  <div className="fieldLabel">{tt('accounts.currentBalance', 'Current Balance')}</div>
-                  <div className="note">
-                    {currency(selectedBalance, selected.currencyCode)}
+                  <div className="fieldLabel">Set Current Balance</div>
+                  <div className="fieldRow">
+                    <input
+                      type={hideBalances ? 'password' : 'text'}
+                      value={setCurrentBalanceText}
+                      onChange={(e) => setSetCurrentBalanceText(e.target.value)}
+                    />
+                    <button type="button" onClick={applySetCurrentBalance} disabled={parseDecimal(setCurrentBalanceText) == null}>
+                      Apply
+                    </button>
                   </div>
                 </div>
               </div>
 
               <div className="groupBox">
-                <div className="groupTitle">{tt('common.details', 'Details')}</div>
+                <div className="groupTitle">Details</div>
                 <label className="field">
-                  <div className="fieldLabel">{tt('accounts.institution', 'Institution')}</div>
+                  <div className="fieldLabel">Institution</div>
                   <input
                     value={selected.institution ?? ''}
                     onChange={(e) => updateSelected({ institution: e.target.value.trim() ? e.target.value : null })}
@@ -279,36 +276,43 @@ export function AccountsView() {
                 </label>
 
                 <label className="field">
-                  <div className="fieldLabel">{tt('common.notes', 'Notes')}</div>
+                  <div className="fieldLabel">Notes</div>
                   <textarea value={selected.notes ?? ''} onChange={(e) => updateSelected({ notes: e.target.value || null })} />
                 </label>
               </div>
 
               <div className="groupBox">
-                <div className="groupTitle">{tt('accounts.transactions', 'Transactions')}</div>
-                <div className="note">
-                  {selectedTransactionCount
-                    ? tf(lang, 'accounts.linkedTransactions', { count: selectedTransactionCount }, `${selectedTransactionCount} linked transaction(s).`)
-                    : tt('accounts.noTransactions', 'No transactions for this account.')}
-                </div>
-                <div className="rowActions">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      dispatch({ type: 'ui/setTransactionsAccountFilter', id: selected.id })
-                      dispatch(setSection('transactions'))
-                    }}
-                  >
-                    {tt('accounts.seeTransactions', 'See transactions')}
-                  </button>
-                </div>
+                <div className="groupTitle">Recent</div>
+                {personTransactions
+                  .filter((t) => t.accountId === selected.id || t.toAccountId === selected.id)
+                  .sort((a, b) => b.date.getTime() - a.date.getTime())
+                  .slice(0, 10)
+                  .map((t) => (
+                    <div key={t.id} className="note" style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                      <span>{toDateInputValue(t.date)}</span>
+                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {t.payee ?? t.kind}
+                      </span>
+                      <span>{hideBalances ? '—' : currency(signedAmountForAccount(t, selected.id), selected.currencyCode)}</span>
+                    </div>
+                  ))}
               </div>
             </div>
           ) : (
-            <div className="empty">{tt('accounts.select', 'Select an account.')}</div>
+            <div className="empty">Select an account.</div>
           )}
         </div>
       </div>
     </>
   )
+}
+
+
+function parseDecimal(text: string): number | null {
+  const trimmed = text.trim()
+  if (!trimmed) return null
+  const normalized = trimmed.replace(/,/g, '.')
+  const n = Number(normalized)
+  if (!Number.isFinite(n)) return null
+  return n
 }

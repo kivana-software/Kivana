@@ -8,9 +8,13 @@ export type Recurrence = 'once' | 'weekly' | 'monthly' | 'yearly'
 
 export type BillCategory = 'housing' | 'utilities' | 'subscriptions' | 'insurance' | 'taxes' | 'transport' | 'other'
 
+export type IncomeSource = 'salary' | 'freelance' | 'rental' | 'investment' | 'other'
+
 export type AccountKind = 'checking' | 'savings' | 'credit' | 'cash' | 'investment' | 'other'
 
 export type TransactionKind = 'expense' | 'income' | 'transfer'
+
+export type DebtKind = 'creditCard' | 'loan' | 'mortgage' | 'other'
 
 export interface DecimalAmount {
   currencyCode: CurrencyCode
@@ -21,6 +25,34 @@ export interface Payment {
   id: UUID
   date: Date
   amount: DecimalAmount
+}
+
+export interface BillAttachment {
+  id: UUID
+  displayName: string
+  storedRelativePath: string
+  createdAt: Date
+}
+
+export interface InvoiceAttachment {
+  id: UUID
+  displayName: string
+  storedRelativePath: string
+  createdAt: Date
+}
+
+export interface Invoice {
+  id: UUID
+  title: string
+  createdAt: Date
+  personId?: UUID | null
+  order?: number
+  folder?: string | null
+  invoiceDate?: Date | null
+  vendor?: string | null
+  client?: string | null
+  total?: DecimalAmount | null
+  attachments: InvoiceAttachment[]
 }
 
 export interface Bill {
@@ -37,6 +69,19 @@ export interface Bill {
   hiddenUntilEdited: boolean
   snoozeUntil?: Date | null
   snoozeCount: number
+  attachments: BillAttachment[]
+}
+
+export interface Income {
+  id: UUID
+  name: string
+  amount: DecimalAmount
+  source: IncomeSource
+  customSourceName?: string | null
+  recurrence: Recurrence
+  nextPayDate: Date
+  notes?: string | null
+  receipts: Payment[]
 }
 
 export interface Account {
@@ -55,6 +100,7 @@ export interface Transaction {
   kind: TransactionKind
   date: Date
   amount: DecimalAmount
+  personId?: UUID | null
   accountId?: UUID | null
   toAccountId?: UUID | null
   category?: BillCategory | null
@@ -63,6 +109,47 @@ export interface Transaction {
   notes?: string | null
   tags: string[]
   relatedBillId?: UUID | null
+  relatedIncomeId?: UUID | null
+}
+
+export interface Reminder {
+  id: UUID
+  title: string
+  when: Date
+  allDay: boolean
+  recurrence: Recurrence
+  priority: 'low' | 'medium' | 'high' | 'critical'
+  notes?: string | null
+  remindMinutesBefore?: number | null
+  remindMinutesBeforeList?: number[] | null
+  completedAt?: Date | null
+  personId?: UUID | null
+  createdAt: Date
+}
+
+export interface Goal {
+  id: UUID
+  name: string
+  targetAmount: DecimalAmount
+  savedAmount: DecimalAmount
+  autoMonthlyAmount?: DecimalAmount | null
+  autoMonthlyNextDate?: Date | null
+  targetDate?: Date | null
+  notes?: string | null
+  archived: boolean
+}
+
+export interface Debt {
+  id: UUID
+  name: string
+  kind: DebtKind
+  currencyCode: CurrencyCode
+  principal: number
+  annualInterestRate: number
+  minimumPayment: number
+  dueDayOfMonth?: number | null
+  notes?: string | null
+  archived: boolean
 }
 
 export function iso8601NoMillis(date: Date): ISO8601String {
@@ -180,4 +267,17 @@ export function processAutoPayments(bills: Bill[], upTo: Date = new Date()): Bil
   })
 
   return changed ? next : bills
+}
+
+export function incomeLogReceipt(income: Income, on: Date = new Date(), amount?: DecimalAmount): Income {
+  const receipt: Payment = {
+    id: crypto.randomUUID(),
+    date: on,
+    amount: amount ?? income.amount,
+  }
+  return {
+    ...income,
+    receipts: [...income.receipts, receipt],
+    nextPayDate: advanceRecurrence(income.recurrence, income.nextPayDate),
+  }
 }

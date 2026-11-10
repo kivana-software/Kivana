@@ -37,4 +37,39 @@ for (let i = 0; i < cargoLines.length; i++) {
 if (!updated) throw new Error('Failed to update src-tauri/Cargo.toml [package] version')
 
 fs.writeFileSync(cargoPath, cargoLines.join('\n'))
+
+const cargoLockPath = path.join(root, 'src-tauri', 'Cargo.lock')
+if (fs.existsSync(cargoLockPath)) {
+  const lockLines = fs.readFileSync(cargoLockPath, 'utf8').split('\n')
+  let inPkg = false
+  let isAppPkg = false
+  let lockUpdated = false
+
+  for (let i = 0; i < lockLines.length; i++) {
+    const line = lockLines[i] ?? ''
+
+    if (line.trim() === '[[package]]') {
+      inPkg = true
+      isAppPkg = false
+      continue
+    }
+    if (inPkg && line.trim().startsWith('[[')) {
+      inPkg = false
+      isAppPkg = false
+    }
+
+    if (inPkg && line.startsWith('name = ')) {
+      isAppPkg = line.trim() === 'name = "app"'
+      continue
+    }
+
+    if (inPkg && isAppPkg && line.startsWith('version = ')) {
+      lockLines[i] = `version = "${version}"`
+      lockUpdated = true
+      break
+    }
+  }
+
+  if (lockUpdated) fs.writeFileSync(cargoLockPath, lockLines.join('\n'))
+}
 console.log(`Synced version ${version}`)

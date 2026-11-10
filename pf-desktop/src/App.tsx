@@ -1,192 +1,170 @@
 import './App.css'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAppStore } from './app/appStore'
-import type { Section } from './app/appStore'
 import { SectionRouter } from './ui/SectionRouter'
 import { OnboardingModal } from './ui/OnboardingModal'
+import { isTauriRuntime } from './storage/tauriJsonStore'
+import { registerAutomationEvents, registerMenuEvents } from './ui/menuEvents'
+import { registerTouchBarEvents } from './ui/touchbarEvents'
 import { Sidebar } from './ui/Sidebar'
-import type { Bill, Transaction } from './domain/models'
-import { startOfDay } from './domain/models'
+import { CommandBar } from './ui/CommandBar'
+import { UpdateWatcher } from './ui/UpdateWatcher'
+import { useAuth } from './auth/AuthProvider'
+import { LoginModal } from './ui/LoginModal'
+import { normalizePeopleSettings } from './domain/people'
+import { isAdvancedAccount, planBadgeLabel } from './licensing/licenseGates'
+import type { Bill, Income } from './domain/models'
+import type { LanguageCode, Theme } from './domain/settings'
+import { AI_FEATURE_ENABLED } from './domain/settings'
 import { t } from './ui/i18n'
+import { exportAutoBackup } from './ui/dataActions'
 
-type TourStep = {
-  selector?: string
-  fallbackSelector?: string
-  section?: Section
-  title: string
-  body: string
-  action?: 'createDemoAccount' | 'createDemoTransactions' | 'createDemoBill'
-  preferredDir?: 'left' | 'right' | 'up' | 'down'
-  offsetX?: number
-  offsetY?: number
-  requires?: 'account' | 'transaction' | 'bill'
+function SplashScreen(props: { title?: string; subtitle?: string }) {
+  return (
+    <div className="splash">
+      <div className="splashCard">
+        <div className="splashLogo" aria-hidden="true">
+          <img className="splashLogoImg" src="/kivana-logo.png" alt="" />
+        </div>
+        <div className="splashTitle">{props.title || 'Welcome back'}</div>
+        <div className="splashSubtitle">
+          {props.subtitle || 'Getting things ready'}
+          <span className="splashDots" aria-hidden="true" />
+        </div>
+      </div>
+    </div>
+  )
 }
 
-export default function App() {
+function MainApp() {
   const store = useAppStore()
   const { state, dispatch } = store
+  const auth = useAuth()
+  const offlineProMode = !auth.session
+  const advanced = offlineProMode || isAdvancedAccount(auth.entitlements)
   const [sidebarExpanded, setSidebarExpanded] = useState(false)
-  const lang = state.settings.language
-  const tt = useCallback((key: string, fallback?: string) => t(lang, key, fallback), [lang])
-
-  const enableMenuAnimations = state.settings.enableMenuAnimations
-  const effectiveSidebarExpanded = enableMenuAnimations ? sidebarExpanded : true
-  const sectionTitle = useMemo(() => tt(`nav.${state.ui.section}`, ''), [state.ui.section, tt])
+  const stateRef = useRef(store.state)
+  stateRef.current = store.state
+  const accountLabel = auth.session ? displayNameForUser(auth.session.userDisplayName, auth.session.userEmail) : 'Offline Pro'
+  const avatarDataUrl = auth.session?.userAvatarDataUrl ? String(auth.session.userAvatarDataUrl || '').trim() : ''
+  const peopleSettings = normalizePeopleSettings(state.settings as any)
+  const activePerson =
+    advanced && peopleSettings.peopleEnabled ? peopleSettings.people.find((p) => p.id === peopleSettings.activePersonId) ?? null : null
+  const sectionTitle = titleForSection(state.ui.section, state.settings.language)
+  const showCommandBar = AI_FEATURE_ENABLED && state.ui.section === 'bills'
   const [quickAddOpen, setQuickAddOpen] = useState(false)
   const quickAddButtonRef = useRef<HTMLButtonElement | null>(null)
   const [quickAddPos, setQuickAddPos] = useState<{ left: number; top: number; width: number } | null>(null)
 
-  const quickAddWidth = 240
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    const root = document.documentElement
+    const mq = typeof window !== 'undefined' && typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-color-scheme: dark)') : null
 
-  function makeId(): string {
-    const anyCrypto = crypto as any
-    if (anyCrypto && typeof anyCrypto.randomUUID === 'function') return anyCrypto.randomUUID()
-    return `${Date.now()}-${Math.random().toString(16).slice(2)}`
-  }
+    const resolvedTheme = (raw: Theme): 'dark' | 'light' => {
+      if (raw === 'dark' || raw === 'light') return raw
+      return mq?.matches ? 'dark' : 'light'
+    }
 
-  function findDemoAccountId(): string | null {
-    const a = state.accounts.find((x) => !x.archived && x.name.trim().toLowerCase() === 'demo bank')
-    return a?.id ?? null
-  }
+    const apply = () => {
+      root.dataset.theme = resolvedTheme(state.settings.theme)
+    }
 
-  function ensureDemoAccount(): string {
-    const existing = findDemoAccountId()
-    if (existing) return existing
-    const id = makeId()
-    dispatch({
-      type: 'accounts/add',
-      account: {
-        id,
-        name: 'Demo Bank',
-        kind: 'checking',
-        currencyCode: state.settings.displayCurrencyCode,
-        openingBalance: 2500,
-        institution: null,
-        notes: null,
-        archived: false,
-      },
+    apply()
+    if (state.settings.theme !== 'system' || !mq) return
+
+    const onChange = () => apply()
+    if ('addEventListener' in mq) {
+      mq.addEventListener('change', onChange)
+      return () => mq.removeEventListener('change', onChange)
+    }
+    ;(mq as any).addListener(onChange)
+    return () => (mq as any).removeListener(onChange)
+  }, [state.settings.theme])
+
+  useEffect(() => {
+    if (!isTauriRuntime()) return
+    let cleanup: (() => void) | null = null
+    let cleanupAutomation: (() => void) | null = null
+    const cleanupTouch = registerTouchBarEvents(dispatch, () => stateRef.current)
+    void registerMenuEvents(() => stateRef.current, dispatch).then((c) => {
+      cleanup = c
     })
-    dispatch({ type: 'ui/addTutorialDemoAccounts', ids: [id] })
-    return id
-  }
+    void registerAutomationEvents(() => stateRef.current, dispatch, store.persistNow).then((c) => {
+      cleanupAutomation = c
+    })
+    return () => {
+      cleanup?.()
+      cleanupAutomation?.()
+      cleanupTouch()
+    }
+  }, [dispatch])
 
-  function addNextDemoTransaction(accountId: string) {
-    const hasIncome = state.transactions.some((t) => t.kind === 'income' && t.accountId === accountId && t.payee === 'Demo Salary')
-    const hasExpense = state.transactions.some((t) => t.kind === 'expense' && t.accountId === accountId && t.payee === 'Demo Groceries')
-    if (!hasIncome) {
-      const id = makeId()
-      dispatch({
-        type: 'transactions/add',
-        transaction: {
-          id,
-          kind: 'income',
-          date: new Date(Date.now() - 86400000 * 2),
-          amount: { currencyCode: state.settings.displayCurrencyCode, value: 1800 },
-          accountId,
-          toAccountId: null,
-          category: null,
-          customCategoryName: null,
-          payee: 'Demo Salary',
-          notes: null,
-          tags: [],
-          relatedBillId: null,
-        },
-      })
-      dispatch({ type: 'ui/addTutorialDemoTransactions', ids: [id] })
-      dispatch({ type: 'ui/selectTransaction', id })
-      return
-    }
-    if (!hasExpense) {
-      const id = makeId()
-      dispatch({
-        type: 'transactions/add',
-        transaction: {
-          id,
-          kind: 'expense',
-          date: new Date(Date.now() - 86400000),
-          amount: { currencyCode: state.settings.displayCurrencyCode, value: 120 },
-          accountId,
-          toAccountId: null,
-          category: 'other',
-          customCategoryName: null,
-          payee: 'Demo Groceries',
-          notes: null,
-          tags: [],
-          relatedBillId: null,
-        },
-      })
-      dispatch({ type: 'ui/addTutorialDemoTransactions', ids: [id] })
-      dispatch({ type: 'ui/selectTransaction', id })
-      return
-    }
-  }
+  useEffect(() => {
+    if (!isTauriRuntime()) return
+    if (!state.settings.autoBackupEnabled) return
+    const everyDays = Number(state.settings.autoBackupEveryDays ?? 7)
+    const keep = Number(state.settings.autoBackupKeepCount ?? 5)
+    const intervalDays = Number.isFinite(everyDays) ? Math.max(1, Math.min(60, Math.floor(everyDays))) : 7
+    const keepCount = Number.isFinite(keep) ? Math.max(1, Math.min(10, Math.floor(keep))) : 5
+    const dueMs = intervalDays * 24 * 60 * 60 * 1000
 
-  function addNextDemoBill() {
-    const hasRent = state.bills.some((b) => b.name.trim() === 'Demo Rent')
-    const hasSub = state.bills.some((b) => b.name.trim() === 'Demo Subscription')
-    const today = startOfDay(new Date())
-    if (!hasRent) {
-      const id = makeId()
-      dispatch({
-        type: 'bills/add',
-        bill: {
-          id,
-          name: 'Demo Rent',
-          amount: { currencyCode: state.settings.displayCurrencyCode, value: 950 },
-          category: 'housing',
-          customCategoryName: null,
-          recurrence: 'monthly',
-          nextDueDate: today,
-          notes: null,
-          payments: [],
-          paidAutomatically: false,
-          hiddenUntilEdited: false,
-          snoozeUntil: null,
-          snoozeCount: 0,
-        },
-      })
-      dispatch({ type: 'ui/addTutorialDemoBills', ids: [id] })
-      dispatch({ type: 'ui/selectBill', id })
-      return
-    }
-    if (!hasSub) {
-      const id = makeId()
-      dispatch({
-        type: 'bills/add',
-        bill: {
-          id,
-          name: 'Demo Subscription',
-          amount: { currencyCode: state.settings.displayCurrencyCode, value: 12.99 },
-          category: 'subscriptions',
-          customCategoryName: null,
-          recurrence: 'monthly',
-          nextDueDate: today,
-          notes: null,
-          payments: [],
-          paidAutomatically: false,
-          hiddenUntilEdited: false,
-          snoozeUntil: null,
-          snoozeCount: 0,
-        },
-      })
-      dispatch({ type: 'ui/addTutorialDemoBills', ids: [id] })
-      dispatch({ type: 'ui/selectBill', id })
-      return
-    }
-  }
+    let cancelled = false
+    let running = false
 
-  function stopTutorialAndCleanup() {
-    const billIds = [...state.ui.tutorialDemoBillIds]
-    const txIds = [...state.ui.tutorialDemoTransactionIds]
-    const accIds = [...state.ui.tutorialDemoAccountIds]
-    for (const id of billIds) dispatch({ type: 'bills/delete', id })
-    for (const id of txIds) dispatch({ type: 'transactions/delete', id })
-    for (const id of accIds) {
-      const willRemain = state.transactions.some((t) => (t.accountId === id || t.toAccountId === id) && !txIds.includes(t.id))
-      if (!willRemain) dispatch({ type: 'accounts/delete', id })
+    const run = async () => {
+      if (cancelled || running) return
+      const last = Number(state.settings.autoBackupLastRunAtMs ?? 0)
+      if (last && Number.isFinite(last)) {
+        const age = Date.now() - last
+        if (age < dueMs) return
+      }
+      running = true
+      try {
+        const datasets = {
+          settings: state.settings,
+          bills: state.bills,
+          incomes: state.incomes,
+          accounts: state.accounts,
+          transactions: state.transactions,
+          reminders: state.reminders,
+          invoices: state.invoices,
+          goals: state.goals,
+          debts: state.debts,
+        }
+        await exportAutoBackup({ datasets, keepCount })
+        dispatch({ type: 'settings/update', patch: { lastBackupAtMs: Date.now(), autoBackupLastRunAtMs: Date.now() } })
+      } catch {
+      } finally {
+        running = false
+      }
     }
-    dispatch({ type: 'ui/stopTutorial' })
-  }
+
+    void run()
+    const id = window.setInterval(() => void run(), 30 * 60 * 1000)
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+    }
+  }, [
+    dispatch,
+    state.accounts,
+    state.bills,
+    state.debts,
+    state.incomes,
+    state.invoices,
+    state.reminders,
+    state.settings,
+    state.transactions,
+    state.settings.autoBackupEnabled,
+    state.settings.autoBackupEveryDays,
+    state.settings.autoBackupKeepCount,
+    state.settings.autoBackupLastRunAtMs,
+  ])
+
+  const enableMenuAnimations = state.settings.enableMenuAnimations
+  const effectiveSidebarExpanded = enableMenuAnimations ? sidebarExpanded : true
+  const quickAddWidth = 220
 
   function openQuickAdd() {
     const el = quickAddButtonRef.current
@@ -212,11 +190,11 @@ export default function App() {
     openQuickAdd()
   }
 
-  function createBill() {
+  function createBillFromTopBar() {
     const now = new Date()
     const b: Bill = {
-      id: makeId(),
-      name: tt('app.quickAdd.newBill', 'New Bill'),
+      id: crypto.randomUUID(),
+      name: 'New Bill',
       amount: { currencyCode: state.settings.displayCurrencyCode, value: 0 },
       category: 'other',
       customCategoryName: null,
@@ -228,6 +206,7 @@ export default function App() {
       hiddenUntilEdited: false,
       snoozeUntil: null,
       snoozeCount: 0,
+      attachments: [],
     }
     dispatch({ type: 'bills/add', bill: b })
     dispatch({ type: 'ui/setSection', section: 'bills' })
@@ -235,265 +214,24 @@ export default function App() {
     closeQuickAdd()
   }
 
-  function createTransaction() {
+  function createIncomeFromTopBar() {
     const now = new Date()
-    const t: Transaction = {
-      id: makeId(),
-      kind: 'expense',
-      date: now,
+    const inc: Income = {
+      id: crypto.randomUUID(),
+      name: 'New Income',
       amount: { currencyCode: state.settings.displayCurrencyCode, value: 0 },
-      accountId: null,
-      toAccountId: null,
-      category: 'other',
-      customCategoryName: null,
-      payee: '',
+      source: 'salary',
+      customSourceName: null,
+      recurrence: 'monthly',
+      nextPayDate: now,
       notes: null,
-      tags: [],
-      relatedBillId: null,
+      receipts: [],
     }
-    dispatch({ type: 'transactions/add', transaction: t })
-    dispatch({ type: 'ui/setSection', section: 'transactions' })
-    dispatch({ type: 'ui/selectTransaction', id: t.id })
+    dispatch({ type: 'incomes/add', income: inc })
+    dispatch({ type: 'ui/setSection', section: 'income' })
+    dispatch({ type: 'ui/selectIncome', id: inc.id })
     closeQuickAdd()
   }
-
-  const tourSteps: TourStep[] = useMemo(
-    () => [
-      {
-        selector: '[data-tour="nav-accounts"]',
-        section: 'accounts',
-        title: tt('tutorial.step1.title', 'Accounts'),
-        body: tt('tutorial.step1.body', 'Start here. Accounts are where your balances come from.'),
-      },
-      {
-        selector: '[data-tour="accounts-add"]',
-        section: 'accounts',
-        title: tt('tutorial.step2.title', 'Add a bank account'),
-        body: tt('tutorial.step2.body', 'Create your first bank account. You can add a real one, or use a demo to learn.'),
-        action: 'createDemoAccount',
-        preferredDir: 'right',
-        offsetX: -40,
-      },
-      {
-        selector: '[data-tour="accounts-selected"]',
-        fallbackSelector: '[data-tour="accounts-add"]',
-        section: 'accounts',
-        title: tt('tutorial.step3.title', 'Edit account details'),
-        body: tt(
-          'tutorial.step3.body',
-          'Select an account to edit name, currency, and starting balance. If you have no accounts yet, add a demo account first.',
-        ),
-        action: 'createDemoAccount',
-        requires: 'account',
-      },
-      {
-        selector: '[data-tour="nav-transactions"]',
-        section: 'transactions',
-        title: tt('tutorial.step4.title', 'Transactions'),
-        body: tt('tutorial.step4.body', 'Transactions are income, expenses, and transfers. They drive your balances and dashboard.'),
-      },
-      {
-        selector: '[data-tour="transactions-add-income"]',
-        section: 'transactions',
-        title: tt('tutorial.step5.title', 'Add demo transactions'),
-        body: tt('tutorial.step5.body', 'Use the buttons here, or add demo transactions one by one to see how it works.'),
-        action: 'createDemoTransactions',
-      },
-      {
-        selector: '[data-tour="transactions-selected"]',
-        fallbackSelector: '[data-tour="transactions-add-income"]',
-        section: 'transactions',
-        title: tt('tutorial.step6.title', 'Edit a transaction'),
-        body: tt(
-          'tutorial.step6.body',
-          'Select a transaction to edit date, account, amount, and category on the right panel. If you have none, add a demo transaction first.',
-        ),
-        action: 'createDemoTransactions',
-        requires: 'transaction',
-      },
-      {
-        selector: '[data-tour="quick-add"]',
-        title: tt('tutorial.step7.title', 'Quick add'),
-        body: tt('tutorial.step7.body', 'Use the + button to quickly create a new transaction or bill from anywhere.'),
-      },
-      {
-        selector: '[data-tour="nav-bills"]',
-        section: 'bills',
-        title: tt('tutorial.step8.title', 'Bills'),
-        body: tt('tutorial.step8.body', 'Bills track upcoming due dates and show what is coming next.'),
-      },
-      {
-        selector: '[data-tour="bills-add"]',
-        section: 'bills',
-        title: tt('tutorial.step9.title', 'Add a bill'),
-        body: tt('tutorial.step9.body', 'Click + to add a bill. Or add a demo bill to learn.'),
-        action: 'createDemoBill',
-      },
-      {
-        selector: '[data-tour="bills-selected"]',
-        fallbackSelector: '[data-tour="bills-add"]',
-        section: 'bills',
-        title: tt('tutorial.step10.title', 'Edit a bill'),
-        body: tt('tutorial.step10.body', 'Select a bill to edit amount, due date, recurrence, and snooze.'),
-        action: 'createDemoBill',
-        requires: 'bill',
-      },
-      {
-        selector: '[data-tour="settings-setupwizard"]',
-        section: 'settings',
-        title: tt('tutorial.step11.title', 'Settings'),
-        body: tt('tutorial.step11.body', 'Change language/currency, export/import backups, or open the setup wizard again.'),
-      },
-    ],
-    [tt],
-  )
-
-  const tutorialOpen = state.ui.tutorialOpen
-  const tutorialStep = state.ui.tutorialStep
-  const currentTour = tourSteps[Math.min(tourSteps.length - 1, Math.max(0, tutorialStep))]
-  const hasAnyAccount = state.accounts.some((a) => !a.archived)
-  const selectedTxId = state.ui.selectedTransactionId
-  const hasSelectedTransaction = selectedTxId ? state.transactions.some((t) => t.id === selectedTxId) : false
-  const selectedBillId = state.ui.selectedBillId
-  const hasSelectedBill = selectedBillId ? state.bills.some((b) => b.id === selectedBillId) : false
-  const nextDisabled =
-    currentTour?.requires === 'account'
-      ? !hasAnyAccount
-      : currentTour?.requires === 'transaction'
-        ? !hasSelectedTransaction
-        : currentTour?.requires === 'bill'
-          ? !hasSelectedBill
-          : false
-
-  useEffect(() => {
-    if (!tutorialOpen) return
-    if (currentTour?.section && state.ui.section !== currentTour.section) {
-      dispatch({ type: 'ui/setSection', section: currentTour.section })
-    }
-  }, [currentTour?.section, dispatch, state.ui.section, tutorialOpen])
-
-  const [tourRect, setTourRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null)
-  const [tourPopover, setTourPopover] = useState<{
-    left: number
-    top: number
-    dir: 'left' | 'right' | 'up' | 'down'
-    arrowX: number
-    arrowY: number
-  } | null>(null)
-
-  useEffect(() => {
-    if (!tutorialOpen) return
-    const margin = 14
-    const popW = 340
-    const popMinH = 160
-    let stopped = false
-    let rafId: number | null = null
-    function clamp(v: number, min: number, max: number) {
-      return Math.max(min, Math.min(max, v))
-    }
-    function overlaps(a: { left: number; top: number; right: number; bottom: number }, b: { left: number; top: number; right: number; bottom: number }) {
-      return !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom)
-    }
-    function update(attempt = 0) {
-      if (stopped) return
-      const selector = currentTour?.selector
-      const fallbackSelector = currentTour?.fallbackSelector
-      const el =
-        (selector ? (document.querySelector(selector) as HTMLElement | null) : null) ??
-        (fallbackSelector ? (document.querySelector(fallbackSelector) as HTMLElement | null) : null)
-      const r = el ? el.getBoundingClientRect() : null
-      if (!r) {
-        setTourRect(null)
-        const left = Math.round((window.innerWidth - popW) / 2)
-        const top = Math.round((window.innerHeight - popMinH) / 2)
-        setTourPopover({ left: Math.max(margin, left), top: Math.max(margin, top), dir: 'down', arrowX: 22, arrowY: 22 })
-        if (selector && attempt < 10) rafId = window.requestAnimationFrame(() => update(attempt + 1))
-        return
-      }
-
-      const rect = {
-        left: Math.round(r.left),
-        top: Math.round(r.top),
-        width: Math.round(r.width),
-        height: Math.round(r.height),
-      }
-      setTourRect(rect)
-
-      try {
-        const pad = 10
-        const offscreen =
-          r.top < pad ||
-          r.left < pad ||
-          r.bottom > window.innerHeight - pad ||
-          r.right > window.innerWidth - pad
-        if (offscreen) el?.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' })
-      } catch {
-      }
-
-      const centerY = rect.top + rect.height / 2
-      const centerX = rect.left + rect.width / 2
-      const popH = currentTour?.action ? 240 : popMinH
-      const offsetX = currentTour?.offsetX ?? 0
-      const offsetY = currentTour?.offsetY ?? 0
-
-      const target = { left: rect.left - 8, top: rect.top - 8, right: rect.left + rect.width + 8, bottom: rect.top + rect.height + 8 }
-      function candidate(dir: 'left' | 'right' | 'up' | 'down') {
-        if (dir === 'left') {
-          return { dir, left: rect.left + rect.width + 12, top: Math.round(centerY - popH / 2) }
-        }
-        if (dir === 'right') {
-          return { dir, left: rect.left - popW - 12, top: Math.round(centerY - popH / 2) }
-        }
-        if (dir === 'up') {
-          return { dir, left: Math.round(centerX - popW / 2), top: rect.top + rect.height + 12 }
-        }
-        return { dir, left: Math.round(centerX - popW / 2), top: rect.top - popH - 12 }
-      }
-
-      function apply(dir: 'left' | 'right' | 'up' | 'down', left: number, top: number) {
-        const maxLeft = window.innerWidth - popW - margin
-        const maxTop = window.innerHeight - popH - margin
-        const clampedLeft = clamp(Math.round(left + offsetX), margin, maxLeft)
-        const clampedTop = clamp(Math.round(top + offsetY), margin, maxTop)
-        const pop = { left: clampedLeft, top: clampedTop, right: clampedLeft + popW, bottom: clampedTop + popH }
-        if (overlaps(pop, target)) return false
-        if (dir === 'left' || dir === 'right') {
-          const arrowY = clamp(Math.round(centerY - clampedTop), 18, popH - 18)
-          setTourPopover({ left: clampedLeft, top: clampedTop, dir, arrowX: 0, arrowY })
-          return true
-        }
-        const arrowX = clamp(Math.round(centerX - clampedLeft), 18, popW - 18)
-        setTourPopover({ left: clampedLeft, top: clampedTop, dir, arrowX, arrowY: 0 })
-        return true
-      }
-
-      const preferred = currentTour?.preferredDir
-      const baseOrder = ['right', 'left', 'up', 'down'] as const
-      const order: Array<'left' | 'right' | 'up' | 'down'> = preferred
-        ? ([preferred, ...baseOrder.filter((d): d is (typeof baseOrder)[number] => d !== preferred)] as Array<'left' | 'right' | 'up' | 'down'>)
-        : [...baseOrder]
-
-      for (const dir of order) {
-        const c = candidate(dir)
-        if (apply(c.dir, c.left, c.top)) return
-      }
-
-      const fallbackLeft = clamp(Math.round(centerX - popW / 2), margin, window.innerWidth - popW - margin)
-      const fallbackTop = clamp(Math.round(centerY - popH / 2), margin, window.innerHeight - popH - margin)
-      const arrowX = clamp(Math.round(centerX - fallbackLeft), 18, popW - 18)
-      setTourPopover({ left: fallbackLeft, top: fallbackTop, dir: 'down', arrowX, arrowY: 0 })
-    }
-    update(0)
-    const onReflow = () => update(0)
-    window.addEventListener('resize', onReflow)
-    window.addEventListener('scroll', onReflow, true)
-    return () => {
-      stopped = true
-      if (rafId != null) window.cancelAnimationFrame(rafId)
-      window.removeEventListener('resize', onReflow)
-      window.removeEventListener('scroll', onReflow, true)
-    }
-  }, [currentTour?.selector, state.ui.section, tutorialOpen])
 
   return (
     <div
@@ -503,99 +241,8 @@ export default function App() {
       }
     >
       <OnboardingModal />
-      {tutorialOpen && currentTour && tourPopover ? (
-        <div className="tourOverlay" aria-live="polite">
-          {tourRect ? (
-            <div
-              className="tourSpotlight"
-              style={{
-                left: tourRect.left - 6,
-                top: tourRect.top - 6,
-                width: tourRect.width + 12,
-                height: tourRect.height + 12,
-              }}
-            />
-          ) : (
-            <div className="tourDim" />
-          )}
-          <div
-            className="tourPopover"
-            style={
-              {
-                left: tourPopover.left,
-                top: tourPopover.top,
-                ['--tour-arrow-x' as any]: `${tourPopover.arrowX}px`,
-                ['--tour-arrow-y' as any]: `${tourPopover.arrowY}px`,
-              } as any
-            }
-            data-dir={tourPopover.dir}
-          >
-            <div className="tourHeader">
-              <div className="tourTitle">{currentTour.title}</div>
-              <button type="button" className="tourClose" onClick={stopTutorialAndCleanup} aria-label={tt('common.close', 'Close')}>
-                ×
-              </button>
-            </div>
-            <div className="tourBody">{currentTour.body}</div>
-            {currentTour.action ? (
-              <div className="tourFooter" style={{ marginTop: 10 }}>
-                <div />
-                <div className="tourActions">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (currentTour.action === 'createDemoAccount') {
-                        const id = ensureDemoAccount()
-                        dispatch({ type: 'ui/setSection', section: 'accounts' })
-                        dispatch({ type: 'ui/selectAccount', id })
-                        return
-                      }
-                      if (currentTour.action === 'createDemoTransactions') {
-                        const id = ensureDemoAccount()
-                        dispatch({ type: 'ui/setSection', section: 'transactions' })
-                        dispatch({ type: 'ui/setTransactionsAccountFilter', id })
-                        addNextDemoTransaction(id)
-                        return
-                      }
-                      if (currentTour.action === 'createDemoBill') {
-                        dispatch({ type: 'ui/setSection', section: 'bills' })
-                        addNextDemoBill()
-                      }
-                    }}
-                  >
-                    {currentTour.action === 'createDemoAccount'
-                      ? tt('tutorial.demo.addAccount', 'Add demo bank account')
-                      : currentTour.action === 'createDemoTransactions'
-                        ? tt('tutorial.demo.addTransactions', 'Add demo transaction')
-                        : tt('tutorial.demo.addBill', 'Add demo bill')}
-                  </button>
-                </div>
-              </div>
-            ) : null}
-            <div className="tourFooter">
-              <div className="tourCount">
-                {tutorialStep + 1}/{tourSteps.length}
-              </div>
-              <div className="tourActions">
-                <button type="button" onClick={() => dispatch({ type: 'ui/prevTutorial' })} disabled={tutorialStep <= 0}>
-                  {tt('tutorial.back', 'Back')}
-                </button>
-                <button
-                  type="button"
-                  className="btnPrimary"
-                  disabled={nextDisabled}
-                  onClick={() => {
-                    if (tutorialStep >= tourSteps.length - 1) stopTutorialAndCleanup()
-                    else dispatch({ type: 'ui/nextTutorial' })
-                  }}
-                >
-                  {tutorialStep >= tourSteps.length - 1 ? tt('tutorial.done', 'Done') : tt('tutorial.next', 'Next')}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <LoginModal />
+      <UpdateWatcher />
       <Sidebar onHoverChange={enableMenuAnimations ? setSidebarExpanded : undefined} />
 
       <main className="main">
@@ -605,38 +252,616 @@ export default function App() {
           </div>
           <div className="appToolbar" data-tauri-drag-region>
             <div className="toolbarLeft">
-              <button type="button" className="toolbarPlus" onClick={toggleQuickAdd} ref={quickAddButtonRef} data-tour="quick-add">
+              {auth.session ? (
+                <button type="button" className="accountButton" onClick={() => auth.setOpenLogin(true)}>
+                  {avatarDataUrl ? <img className="accountAvatar" src={avatarDataUrl} alt="" /> : null}
+                  <span className="accountEmail">{accountLabel}</span>
+                  <span className="planBadge">
+                    {planBadgeLabel(auth.entitlements)}
+                  </span>
+                </button>
+              ) : (
+                <div className="accountButton" aria-label="Offline Pro mode">
+                  <span className="accountEmail">{accountLabel}</span>
+                  <span className="planBadge">Pro</span>
+                </div>
+              )}
+              <button type="button" className="toolbarPlus" onClick={toggleQuickAdd} ref={quickAddButtonRef}>
                 +
               </button>
             </div>
-            <div />
-            <div className="toolbarRight">{sectionTitle ? <div className="toolbarTitle">{sectionTitle}</div> : null}</div>
+            {showCommandBar ? <CommandBar /> : <div />}
+            <div className="toolbarRight">
+              {sectionTitle ? <div className="toolbarTitle">{sectionTitle}</div> : null}
+              {activePerson ? <span className="personBadge">{activePerson.name}</span> : null}
+            </div>
           </div>
         </header>
-
         {quickAddOpen && quickAddPos ? (
           <>
             <div className="popoverOverlay" onMouseDown={closeQuickAdd} />
             <div className="popoverPanel" style={{ left: quickAddPos.left, top: quickAddPos.top, right: 'auto', width: quickAddPos.width }}>
               <div className="groupTitle" style={{ marginBottom: 8 }}>
-                {tt('app.quickAdd.create', 'Create')}
+                {t(state.settings.language, 'app.quickAdd.title', 'Create')}
               </div>
               <div className="rowActions" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-                <button type="button" onClick={createTransaction}>
-                  {tt('app.quickAdd.newTransaction', 'New Transaction')}
+                <button type="button" onClick={createBillFromTopBar}>
+                  {t(state.settings.language, 'app.quickAdd.newBill', 'New Bill')}
                 </button>
-                <button type="button" onClick={createBill}>
-                  {tt('app.quickAdd.newBill', 'New Bill')}
+                <button type="button" onClick={createIncomeFromTopBar}>
+                  {t(state.settings.language, 'app.quickAdd.newIncome', 'New Income')}
                 </button>
               </div>
             </div>
           </>
         ) : null}
-
         <section className="panel content">
           <SectionRouter />
         </section>
       </main>
     </div>
   )
+}
+
+function App() {
+  const isPdfViewerWindow = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('pdfViewer') === '1'
+  const [minSplashDone, setMinSplashDone] = useState(false)
+
+  useEffect(() => {
+    const id = window.setTimeout(() => setMinSplashDone(true), 3500)
+    return () => window.clearTimeout(id)
+  }, [])
+
+  if (!isPdfViewerWindow && !minSplashDone) {
+    return <SplashScreen subtitle="Loading your workspace" />
+  }
+  return isPdfViewerWindow ? <PdfViewerWindow /> : <MainApp />
+}
+
+export default App
+
+function PdfViewerWindow() {
+  const [title, setTitle] = useState('PDF')
+  const [pageCount, setPageCount] = useState(0)
+  const [busy, setBusy] = useState(false)
+  const [page, setPage] = useState(1)
+  const [zoom, setZoom] = useState(1.15)
+  const [tool, setTool] = useState<'pan' | 'highlight'>('pan')
+  const [highlightsByPage, setHighlightsByPage] = useState<Record<number, Array<{ x: number; y: number; w: number; h: number }>>>({})
+  const [printImages, setPrintImages] = useState<string[] | null>(null)
+  const [printing, setPrinting] = useState(false)
+  const docRef = useRef<any>(null)
+  const [docKey, setDocKey] = useState(0)
+  const tokenRef = useRef(0)
+
+  const loadPdf = useCallback(async (relRaw: string, nextTitleRaw: string) => {
+    const rel = String(relRaw ?? '').trim()
+    if (!rel) return
+    const nextTitle = String(nextTitleRaw ?? '').trim() || 'PDF'
+    setTitle(nextTitle)
+    tokenRef.current += 1
+    const token = tokenRef.current
+    setBusy(true)
+    docRef.current = null
+    setPageCount(0)
+    setPage(1)
+    setZoom(1.15)
+    setTool('pan')
+    setHighlightsByPage({})
+    setPrintImages(null)
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      const r = (await invoke('read_attachment_file', { storedRelativePath: rel })) as any
+      const b64 = String(r?.base64 ?? '')
+      if (!b64) return
+      const bytes = base64ToBytes(b64)
+      const pdfjs: any = await import('pdfjs-dist/legacy/build/pdf.mjs')
+      pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/legacy/build/pdf.worker.mjs', import.meta.url).toString()
+      const doc = await pdfjs.getDocument({ data: bytes }).promise
+      if (tokenRef.current !== token) return
+      docRef.current = doc
+      setPageCount(Number(doc?.numPages ?? 0))
+      setDocKey((k) => k + 1)
+    } finally {
+      if (tokenRef.current === token) setBusy(false)
+    }
+  }, [])
+
+  function base64ToBytes(b64: string): Uint8Array {
+    const bin = atob(b64)
+    const out = new Uint8Array(bin.length)
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
+    return out
+  }
+
+  const closeWindow = useCallback(async () => {
+    if (!isTauriRuntime()) {
+      window.close()
+      return
+    }
+    const { getCurrentWindow } = await import('@tauri-apps/api/window')
+    await getCurrentWindow().close()
+  }, [])
+
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search)
+    const rel = String(sp.get('rel') ?? '').trim()
+    const t = String(sp.get('title') ?? '').trim()
+    if (rel) void loadPdf(rel, t || 'PDF')
+  }, [loadPdf])
+
+  useEffect(() => {
+    if (!isTauriRuntime()) return
+    let unlisten: null | (() => void) = null
+    void (async () => {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window')
+      const win = getCurrentWindow()
+      unlisten = await win.listen('pdf:open', (e) => {
+        const payload: any = (e as any)?.payload ?? null
+        const rel = String(payload?.rel ?? '').trim()
+        const t = String(payload?.title ?? '').trim()
+        if (rel) void loadPdf(rel, t || 'PDF')
+      })
+    })()
+    return () => {
+      unlisten?.()
+      docRef.current = null
+    }
+  }, [loadPdf])
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') void closeWindow()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [closeWindow])
+
+  useEffect(() => {
+    if (!printImages) return
+    function onAfterPrint() {
+      setPrintImages(null)
+      setPrinting(false)
+    }
+    window.addEventListener('afterprint', onAfterPrint)
+    return () => window.removeEventListener('afterprint', onAfterPrint)
+  }, [printImages])
+
+  useEffect(() => {
+    if (!printImages) return
+    let cancelled = false
+    void (async () => {
+      for (let i = 0; i < 80; i++) {
+        if (cancelled) return
+        const imgs = Array.from(document.querySelectorAll('img[data-pdf-print="1"]')) as HTMLImageElement[]
+        const ok = imgs.length === printImages.length && imgs.every((img) => img.complete && img.naturalWidth > 0 && img.naturalHeight > 0)
+        if (ok) break
+        await new Promise((r) => setTimeout(r, 40))
+      }
+      if (cancelled) return
+      try {
+        window.print()
+      } catch {
+        setPrintImages(null)
+        setPrinting(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [printImages])
+
+  const canPrev = page > 1
+  const canNext = pageCount > 0 && page < pageCount
+
+  async function doPrint(mode: 'all' | 'current') {
+    if (printing) return
+    const doc = docRef.current
+    if (!doc) return
+    setPrinting(true)
+    try {
+      const imgs: string[] = []
+      const total = Number(doc?.numPages ?? 0)
+      const start = mode === 'current' ? page : 1
+      const end = mode === 'current' ? page : total
+      for (let p = start; p <= end; p++) {
+        const pageObj = await doc.getPage(p)
+        const viewport = pageObj.getViewport({ scale: 1.85 })
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')
+        if (!ctx) continue
+        canvas.width = Math.max(1, Math.floor(viewport.width))
+        canvas.height = Math.max(1, Math.floor(viewport.height))
+        await pageObj.render({ canvasContext: ctx, viewport }).promise
+        applyCanvasWatermark(ctx, canvas.width, canvas.height, 'Kivana')
+        const hs = highlightsByPage[p] ?? []
+        drawHighlights(ctx, canvas.width, canvas.height, hs)
+        imgs.push(canvas.toDataURL('image/jpeg', 0.92))
+      }
+      setPrintImages(imgs)
+    } catch {
+      setPrinting(false)
+      setPrintImages(null)
+    }
+  }
+
+  return (
+    <div className="pdfViewerWindow" style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {printImages ? null : (
+        <div
+          className="pdfViewerTitlebar"
+          data-tauri-drag-region
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '12px 14px',
+            borderBottom: '1px solid var(--border)',
+            background: 'var(--panel)',
+            userSelect: 'none',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }} data-tauri-drag-region>
+            <img src="/kivana-logo.png" alt="Kivana logo" style={{ width: 28, height: 28, borderRadius: 10 }} draggable={false} data-tauri-drag-region />
+            <div style={{ minWidth: 0 }} data-tauri-drag-region>
+              <div style={{ fontWeight: 800, color: 'var(--text-h)', lineHeight: 1.2 }} data-tauri-drag-region>
+                Kivana • PDF
+              </div>
+              <div className="note" style={{ marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {title}
+              </div>
+            </div>
+          </div>
+          <div style={{ flex: 1 }} data-tauri-drag-region />
+          <div className="modalActions" style={{ marginTop: 0, display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button type="button" disabled={!canPrev} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+              Prev
+            </button>
+            <div className="note" style={{ minWidth: 92, textAlign: 'center' }}>
+              {pageCount ? `${page} / ${pageCount}` : ''}
+            </div>
+            <button type="button" disabled={!canNext} onClick={() => setPage((p) => Math.min(pageCount || 1, p + 1))}>
+              Next
+            </button>
+            <button type="button" onClick={() => setZoom((z) => Math.max(0.6, Math.round((z - 0.1) * 100) / 100))}>
+              −
+            </button>
+            <div className="note" style={{ minWidth: 52, textAlign: 'center' }}>
+              {Math.round(zoom * 100)}%
+            </div>
+            <button type="button" onClick={() => setZoom((z) => Math.min(2.2, Math.round((z + 0.1) * 100) / 100))}>
+              +
+            </button>
+            <button type="button" className={tool === 'highlight' ? 'btnPrimary' : undefined} onClick={() => setTool((t) => (t === 'highlight' ? 'pan' : 'highlight'))}>
+              Highlight
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                setHighlightsByPage((prev) => {
+                  const next = { ...prev }
+                  delete next[page]
+                  return next
+                })
+              }
+            >
+              Clear
+            </button>
+            <button type="button" onClick={() => void doPrint('current')} disabled={!docRef.current || printing}>
+              Print page
+            </button>
+            <button type="button" onClick={() => void doPrint('all')} disabled={!docRef.current || printing}>
+              {printing ? 'Printing…' : 'Print all'}
+            </button>
+            <button type="button" onClick={() => void closeWindow()}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="pdfViewerContent" style={{ flex: 1, background: printImages ? '#fff' : 'rgba(255,255,255,0.03)', overflow: 'auto' }}>
+        {printImages ? (
+          <div className="pdfPrintRoot">
+            {printImages.map((src, idx) => (
+              <div
+                key={src.slice(0, 48) + idx}
+                className="pdfPrintPage"
+                style={{ breakAfter: 'page' as any, pageBreakAfter: 'always' as any, breakInside: 'avoid' as any, pageBreakInside: 'avoid' as any }}
+              >
+                <img data-pdf-print="1" src={src} className="pdfPrintImg" />
+              </div>
+            ))}
+          </div>
+        ) : docRef.current && pageCount > 0 ? (
+          <div style={{ padding: 18 }}>
+            <PdfSinglePage
+              key={`${docKey}-${page}-${zoom}-${tool}`}
+              doc={docRef.current}
+              page={page}
+              zoom={zoom}
+              tool={tool}
+              watermark="Kivana"
+              highlights={highlightsByPage[page] ?? []}
+              onAddHighlight={(h) =>
+                setHighlightsByPage((prev) => {
+                  const next = { ...prev }
+                  next[page] = [...(next[page] ?? []), h]
+                  return next
+                })
+              }
+            />
+          </div>
+        ) : (
+          <div style={{ height: '100%', display: 'grid', placeItems: 'center' }}>
+            <div className="busyRow">
+              <div className="busySpinner" />
+              <div>{busy ? 'Loading PDF…' : 'Waiting…'}</div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function applyCanvasWatermark(ctx: CanvasRenderingContext2D, w: number, h: number, text: string) {
+  const s = Math.max(42, Math.floor(Math.min(w, h) * 0.12))
+  const stepX = Math.max(220, Math.floor(w * 0.55))
+  const stepY = Math.max(180, Math.floor(h * 0.45))
+  const angle = (-22 * Math.PI) / 180
+  ctx.save()
+  ctx.globalAlpha = 0.18
+  ctx.fillStyle = '#000'
+  ctx.font = `900 ${s}px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  for (let y = -stepY; y <= h + stepY; y += stepY) {
+    for (let x = -stepX; x <= w + stepX; x += stepX) {
+      ctx.save()
+      ctx.translate(x, y)
+      ctx.rotate(angle)
+      ctx.fillText(text, 0, 0)
+      ctx.restore()
+    }
+  }
+  ctx.restore()
+}
+
+function drawHighlights(ctx: CanvasRenderingContext2D, w: number, h: number, hs: Array<{ x: number; y: number; w: number; h: number }>) {
+  if (!hs.length) return
+  ctx.save()
+  ctx.globalAlpha = 1
+  ctx.fillStyle = 'rgba(255, 230, 70, 0.30)'
+  for (const r of hs) {
+    const rx = Math.max(0, Math.min(w, r.x * w))
+    const ry = Math.max(0, Math.min(h, r.y * h))
+    const rw = Math.max(0, Math.min(w - rx, r.w * w))
+    const rh = Math.max(0, Math.min(h - ry, r.h * h))
+    if (rw <= 0 || rh <= 0) continue
+    ctx.fillRect(rx, ry, rw, rh)
+  }
+  ctx.restore()
+}
+
+function PdfSinglePage(props: {
+  doc: any
+  page: number
+  zoom: number
+  tool: 'pan' | 'highlight'
+  watermark: string
+  highlights: Array<{ x: number; y: number; w: number; h: number }>
+  onAddHighlight: (h: { x: number; y: number; w: number; h: number }) => void
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const renderTaskRef = useRef<any>(null)
+  const boxRef = useRef<HTMLDivElement | null>(null)
+  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null)
+  const [dragNow, setDragNow] = useState<{ x: number; y: number } | null>(null)
+
+  const watermarkBg = (() => {
+    const t = String(props.watermark || '').trim() || 'Kivana'
+    const svg =
+      `<svg xmlns="http://www.w3.org/2000/svg" width="460" height="320">` +
+      `<g transform="translate(230 160) rotate(-22)">` +
+      `<text x="0" y="0" text-anchor="middle" dominant-baseline="middle" ` +
+      `fill="#000" fill-opacity="0.18" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="74" font-weight="900" letter-spacing="6">` +
+      `${t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}` +
+      `</text>` +
+      `</g>` +
+      `</svg>`
+    return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
+  })()
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      if (renderTaskRef.current?.cancel) {
+        try {
+          renderTaskRef.current.cancel()
+        } catch {
+        }
+        renderTaskRef.current = null
+      }
+      const canvas = canvasRef.current
+      if (!canvas) return
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+      const pageObj = await props.doc.getPage(props.page)
+      const viewport = pageObj.getViewport({ scale: 1.45 * props.zoom })
+      canvas.width = Math.max(1, Math.floor(viewport.width))
+      canvas.height = Math.max(1, Math.floor(viewport.height))
+      const task = pageObj.render({ canvasContext: ctx, viewport })
+      renderTaskRef.current = task
+      try {
+        await task.promise
+      } catch (e: any) {
+        const name = String(e?.name ?? '')
+        const msg = String(e?.message ?? e ?? '')
+        if (name.includes('RenderingCancelled') || msg.toLowerCase().includes('cancel')) return
+        return
+      } finally {
+        if (renderTaskRef.current === task) renderTaskRef.current = null
+      }
+      if (cancelled) return
+      applyCanvasWatermark(ctx, canvas.width, canvas.height, props.watermark)
+      drawHighlights(ctx, canvas.width, canvas.height, props.highlights)
+    })()
+    return () => {
+      cancelled = true
+      if (renderTaskRef.current?.cancel) {
+        try {
+          renderTaskRef.current.cancel()
+        } catch {
+        }
+      }
+      renderTaskRef.current = null
+    }
+  }, [props.doc, props.page, props.watermark, props.zoom, props.highlights])
+
+  function toNorm(e: React.PointerEvent) {
+    const el = boxRef.current
+    if (!el) return null
+    const r = el.getBoundingClientRect()
+    const x = (e.clientX - r.left) / Math.max(1, r.width)
+    const y = (e.clientY - r.top) / Math.max(1, r.height)
+    return { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) }
+  }
+
+  function onPointerDown(e: React.PointerEvent) {
+    if (props.tool !== 'highlight') return
+    const p = toNorm(e)
+    if (!p) return
+    setDragStart(p)
+    setDragNow(p)
+    ;(e.currentTarget as any).setPointerCapture?.(e.pointerId)
+  }
+
+  function onPointerMove(e: React.PointerEvent) {
+    if (props.tool !== 'highlight') return
+    if (!dragStart) return
+    const p = toNorm(e)
+    if (!p) return
+    setDragNow(p)
+  }
+
+  function onPointerUp(e: React.PointerEvent) {
+    if (props.tool !== 'highlight') return
+    if (!dragStart) return
+    const p = toNorm(e)
+    const end = p ?? dragNow ?? dragStart
+    const x0 = Math.min(dragStart.x, end.x)
+    const y0 = Math.min(dragStart.y, end.y)
+    const x1 = Math.max(dragStart.x, end.x)
+    const y1 = Math.max(dragStart.y, end.y)
+    const w = x1 - x0
+    const h = y1 - y0
+    setDragStart(null)
+    setDragNow(null)
+    if (w < 0.01 || h < 0.01) return
+    props.onAddHighlight({ x: x0, y: y0, w, h })
+  }
+
+  return (
+    <div
+      style={{
+        position: 'relative',
+        width: 'min(980px, 100%)',
+        margin: '0 auto 18px auto',
+        borderRadius: 12,
+        background: '#fff',
+        boxShadow: '0 12px 36px rgba(0,0,0,0.35)',
+        overflow: 'hidden',
+      }}
+      ref={boxRef}
+    >
+      <canvas ref={canvasRef} style={{ display: 'block', width: '100%', height: 'auto' }} />
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          backgroundImage: watermarkBg,
+          backgroundRepeat: 'repeat',
+          backgroundSize: '460px 320px',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: props.tool === 'highlight' ? 'auto' : 'none',
+        }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+      >
+        {dragStart && dragNow ? (
+          <div
+            style={{
+              position: 'absolute',
+              left: `${Math.min(dragStart.x, dragNow.x) * 100}%`,
+              top: `${Math.min(dragStart.y, dragNow.y) * 100}%`,
+              width: `${Math.abs(dragNow.x - dragStart.x) * 100}%`,
+              height: `${Math.abs(dragNow.y - dragStart.y) * 100}%`,
+              background: 'rgba(255, 230, 70, 0.25)',
+              outline: '2px solid rgba(255, 230, 70, 0.65)',
+              borderRadius: 4,
+            }}
+          />
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+function titleForSection(section: string, language: LanguageCode): string {
+  switch (section) {
+    case 'dashboard':
+      return t(language, 'nav.dashboard', 'Dashboard')
+    case 'budget':
+      return t(language, 'nav.budget', 'Budget')
+    case 'calendar':
+      return t(language, 'nav.calendar', 'Calendar')
+    case 'bills':
+      return t(language, 'sidebar.group.bills', 'Bills')
+    case 'income':
+      return t(language, 'nav.income', 'Income')
+    case 'dueSoon':
+      return t(language, 'nav.dueSoon', 'Due Soon')
+    case 'deferred':
+      return t(language, 'nav.deferred', 'Snoozed')
+    case 'paidRecently':
+      return t(language, 'nav.paidRecently', 'Paid Recently')
+    case 'accounts':
+      return t(language, 'nav.accounts', 'Accounts')
+    case 'transactions':
+      return ''
+    case 'invoices':
+      return t(language, 'nav.files', 'Files')
+    case 'goals':
+      return t(language, 'nav.goals', 'Goals')
+    case 'debts':
+      return t(language, 'nav.debts', 'Debts')
+    case 'reports':
+      return t(language, 'nav.reports', 'Reports')
+    case 'settings':
+      return t(language, 'nav.settings', 'Settings')
+    default:
+      return 'Kivana'
+  }
+}
+
+function displayNameForEmail(email: string): string {
+  const trimmed = String(email || '').trim()
+  const at = trimmed.indexOf('@')
+  if (at <= 0) return trimmed
+  return trimmed.slice(0, at)
+}
+
+function displayNameForUser(displayName: string | null | undefined, email: string): string {
+  const name = String(displayName ?? '').trim()
+  if (name) return name
+  return displayNameForEmail(email)
 }

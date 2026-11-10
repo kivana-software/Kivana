@@ -23,7 +23,7 @@
 
   font: 14px/140% var(--sans);
   letter-spacing: 0.1px;
-  color-scheme: dark;
+  color-scheme: light;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
@@ -32,8 +32,33 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+:root[data-theme='dark'] {
+  --text: rgba(235, 235, 245, 0.82);
+  --text-h: rgba(235, 235, 245, 0.92);
+  --muted: rgba(235, 235, 245, 0.56);
+  --bg: #1f2124;
+  --surface: rgba(32, 34, 37, 0.92);
+  --surface-2: rgba(38, 41, 45, 0.92);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-2: rgba(255, 255, 255, 0.06);
+  --hover: rgba(255, 255, 255, 0.06);
+  --hover-2: rgba(255, 255, 255, 0.10);
+  --accent: #0a84ff;
+  --accent-bg: rgba(10, 132, 255, 0.18);
+  --accent-bg-strong: rgba(10, 132, 255, 0.30);
+  --shadow: rgba(0, 0, 0, 0.55) 0 10px 26px;
+  --red: #ff453a;
+  --yellow: #ffd60a;
+  --green: #34c759;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]) {
     --text: rgba(235, 235, 245, 0.82);
     --text-h: rgba(235, 235, 245, 0.92);
     --muted: rgba(235, 235, 245, 0.56);
@@ -51,6 +76,7 @@
     --red: #ff453a;
     --yellow: #ffd60a;
     --green: #34c759;
+    color-scheme: dark;
   }
 }
 
