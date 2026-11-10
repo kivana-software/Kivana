@@ -54,6 +54,14 @@
 
 Kivana is a **modern personal finance & accounting app** that runs entirely on your device. No cloud, no subscriptions, no data selling — just a beautiful, fast, and private way to manage your money.
 
+> ### 🚧 Open source — full code, work in progress
+>
+> The **complete application source** is public in this repository, in [`pf-desktop/`](./pf-desktop), under the **MIT** license.
+> No private core, no hidden modules — what you download is built from what you can read here.
+>
+> Kivana is under **active development**. Some screens and features still need updating and are being finished as time allows — expect changes, rough edges and frequent commits.
+> Spotted something? [Open an issue](https://github.com/kivana-software/Kivana/issues) — it genuinely helps. ❤️
+
 ---
 
 <h2 id="features">✨ Features</h2>
@@ -110,13 +118,14 @@ Most personal finance apps today are **SaaS products disguised as tools**:
 
 ### Download
 
-Grab the latest release for your platform from the [Releases page](https://github.com/kivana-software/Kivana/releases/latest).
+Grab the latest build from **[kivana.eu/downloads](https://kivana.eu/downloads/)** — or build it yourself from the source below.
 
 | Platform | Format |
 |----------|--------|
 | **macOS** | `.dmg` |
 | **Windows** | `.msi` |
 | **Linux** | `.AppImage` or `.deb` |
+| **Source** | [`pf-desktop/`](./pf-desktop) — full code, build it yourself |
 
 ### macOS Fix (if blocked)
 
@@ -163,6 +172,19 @@ npm run tauri:build
 
 ---
 
+<h2 id="contributing">🤝 Contributing</h2>
+
+Kivana is open source and contributions are welcome — bug reports, ideas, translations, code.
+
+1. Fork the repo and create a branch.
+2. `cd pf-desktop && npm install && npm run tauri:dev`
+3. Keep changes focused; run `npm run lint` and `npx tsc -b` before opening a PR.
+4. Open a pull request describing **what** and **why**.
+
+Some parts of the codebase are still being cleaned up, so if something looks unfinished, it probably is — ask before rewriting large areas.
+
+---
+
 <h2 id="license--funding">📜 License & Funding</h2>
 
 ### License
@@ -188,5 +210,5 @@ Your donations help keep Kivana **free, open source, and privacy-first**. Every 
 </p>
 
 <p align="center">
-  <sub>Built with care, for people who own their data. ❤️</sub>
+  <sub>Built with care (and a lot of ❤️) for people who own their data.</sub>
 </p>
