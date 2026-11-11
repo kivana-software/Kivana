@@ -36,6 +36,9 @@ jobs:
         run: npm -C pf-desktop ci
 
       - name: Build (macOS)
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm -C pf-desktop run tauri:build
 
       - name: Collect artifacts
@@ -71,6 +74,9 @@ jobs:
         run: npm -C pf-desktop ci
 
       - name: Build (Windows MSI)
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm -C pf-desktop run tauri:build -- --config src-tauri/tauri.windows.conf.json
 
       - name: Collect artifacts
