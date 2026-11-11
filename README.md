@@ -3,15 +3,12 @@
 > **Offline-first. Privacy-first. Open source. Your data never leaves your device.**
 
 <p align="center">
-  <img src="https://kivana.eu/kivana-logo.png" alt="Kivana Logo" width="120"/>
+  <img src="https://raw.githubusercontent.com/kivana-software/Kivana/main/assets/hero.png" alt="Kivana Logo" width="120"/>
 </p>
 
 <p align="center">
   <a href="https://github.com/kivana-software/Kivana/blob/main/LICENSE.md">
     <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"/>
-  </a>
-  <a href="https://kivana.eu">
-    <img src="https://img.shields.io/badge/website-kivana.eu-1b1748" alt="Website"/>
   </a>
   <img src="https://img.shields.io/badge/built%20with-Tauri%20%7C%20React%20%7C%20TypeScript-3178C6" alt="Built with"/>
   <a href="https://www.paypal.com/paypalme/kostelioklausimynas">
@@ -118,7 +115,7 @@ Most personal finance apps today are **SaaS products disguised as tools**:
 
 ### Download
 
-Grab the latest build from **[kivana.eu/downloads](https://kivana.eu/downloads/)** — or build it yourself from the source below.
+Grab the latest build from the **[GitHub releases page](https://github.com/kivana-software/Kivana/releases/latest)** — or build it yourself from the source below.
 
 | Platform | Format |
 |----------|--------|
@@ -204,7 +201,6 @@ Your donations help keep Kivana **free, open source, and privacy-first**. Every 
 ---
 
 <p align="center">
-  <a href="https://kivana.eu">kivana.eu</a> •
   <a href="https://github.com/kivana-software/Kivana/issues">Report a Bug</a> •
   <a href="https://github.com/kivana-software/Kivana/discussions">Discussion</a>
 </p>
